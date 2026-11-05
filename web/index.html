@@ -1,0 +1,2403 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REosu!</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23101630'/%3E%3Cpath d='M16 7 26 24H6z' fill='%234f8cff'/%3E%3C/svg%3E">
+<style>
+/* 스타일은 ManiaMapAnalyser(Leo_Black, MIT)를 이어받았다. 폰트: Outfit, Space Grotesk (OFL) */
+@font-face { font-family: "Outfit"; src: url(/fonts/Outfit-Latin.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Space Grotesk"; src: url(/fonts/SpaceGrotesk-Latin.woff2) format("woff2"); font-weight: 300 700; font-display: swap; }
+:root {
+  color-scheme: dark;
+  --ma: #2f4fa8;
+  --ink: #07080d;
+  --accent: #4f8cff;
+  --text: #f5f7ff;
+  --soft: #a9b1d2;
+  --dim: #7f88ad;
+  --glass: rgba(18, 22, 38, .78);
+  --glass-border: rgba(255, 255, 255, .14);
+  --track: rgba(255, 255, 255, .1);
+  --separator: rgba(255, 255, 255, .07);
+  --ok: #4fc47f;
+  --warn: #e0a83c;
+  --danger: #e5534b;
+  --row-h: 68px;
+  --width: min(1080px, 100vw - 40px);
+}
+* { padding: 0; margin: 0; box-sizing: border-box; min-width: 0; }
+html {
+  overflow-anchor: none;  /* 보이는 줄만 다시 그리므로 스크롤 위치를 임의로 옮기지 못하게 한다 */
+  background: var(--ink);
+}
+body {
+  font: 15px/1.4 "Outfit", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  background:
+    radial-gradient(135% 90% at 16% -12%, color-mix(in srgb, var(--ma) 30%, transparent) 0%, transparent 58%),
+    linear-gradient(162deg, color-mix(in srgb, var(--ma) 18%, var(--ink)) 0%, color-mix(in srgb, var(--ma) 9%, var(--ink)) 100%);
+  background-attachment: fixed;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+::selection { color: #fff; background: var(--accent); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(10, 15, 28, .35); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(128, 179, 255, .58), rgba(103, 255, 226, .45));
+  border-radius: 999px;
+  border: 2px solid rgba(10, 15, 28, .45);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(128, 179, 255, .78), rgba(103, 255, 226, .62)); }
+.num { font-family: "Space Grotesk", "Outfit", sans-serif; font-variant-numeric: tabular-nums lining-nums; }
+
+html:lang(ko) body { font-family: "Outfit", "Segoe UI", "Malgun Gothic", system-ui, sans-serif; }
+html:lang(ja) body { font-family: "Outfit", "Segoe UI", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+html:lang(zh-CN) body { font-family: "Outfit", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif; }
+
+/* 떠오르는 삼각형: 목록 위 레이어. 도구 막대와 하단 막대의 유리 뒤로는 비쳐 보인다. */
+.triangles { position: fixed; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; contain: layout paint; }
+.triangles i {
+  position: absolute;
+  bottom: -190px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  will-change: transform;
+  animation: rise linear infinite;
+}
+@keyframes rise {
+  to { transform: translate3d(var(--drift, 0px), calc(-100vh - 260px), 0) rotate(var(--spin, 0deg)); }
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(10, 13, 26, .62);
+  backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: 0 1px 0 transparent;
+  transition: box-shadow .15s ease;
+}
+.toolbar.scrolled { box-shadow: 0 1px 0 var(--glass-border); }
+.toolbar-inner { width: var(--width); margin: 0 auto; padding: 12px 0; display: grid; gap: 10px; }
+.top-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; justify-self: start; }
+.brand h1, .brand a {
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand h1 {
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  background-image: linear-gradient(105deg, #f5f7ff 0 42%, #6ea3ff 47%, #ffffff 50%, #6ea3ff 53%, #f5f7ff 58% 100%);
+}
+.brand a {
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  background-image: linear-gradient(105deg, var(--dim) 0 42%, #cfe0ff 50%, var(--dim) 58% 100%);
+}
+.brand a:hover { text-decoration: underline; text-decoration-color: var(--dim); }
+/* 빛이 왼쪽에서 오른쪽으로 쓸고 지나간다. 마우스를 떼면 바로 제자리로 돌아간다. */
+.brand:hover h1, .brand:hover a { background-position: 0 0; transition: background-position .75s cubic-bezier(.3, .1, .3, 1); }
+.brand:hover a { transition-delay: .12s; }
+.top-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.osu-status { display: flex; align-items: center; gap: 6px; margin-right: 8px; font-size: 13px; color: var(--soft); white-space: nowrap; }
+.osu-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+
+.tabs { display: inline-flex; gap: 6px; }
+.tabs button {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(148, 163, 184, .24);
+  border-radius: 999px;
+  background: rgba(30, 41, 59, .42);
+  color: var(--soft);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, color .12s ease;
+}
+.tabs button:hover { border-color: color-mix(in srgb, var(--accent) 42%, rgba(148, 163, 184, .24)); color: var(--text); }
+.tabs button.active { border-color: color-mix(in srgb, var(--accent) 58%, transparent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
+.tabs .count { margin-left: 6px; font-size: 12px; opacity: .78; }
+
+.icon-button {
+  width: 32px; height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--soft);
+  cursor: pointer;
+  transition: background .1s ease, color .1s ease, transform .1s ease;
+}
+.icon-button:hover { background: var(--track); color: var(--text); }
+.icon-button:active { transform: scale(.94); }
+.icon-button:disabled { opacity: .35; pointer-events: none; }
+.icon-button svg { width: 18px; height: 18px; }
+
+.filters { position: relative; display: flex; align-items: center; gap: 8px; }
+.search { position: relative; flex: 1; }
+.search svg { position: absolute; left: 11px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); color: var(--dim); pointer-events: none; }
+.search input, .input, .menu, .filter-button {
+  height: 34px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: rgba(10, 15, 28, .45);
+}
+.search input { width: 100%; padding: 0 10px 0 32px; }
+.search input::placeholder, .input::placeholder { color: var(--dim); }
+.menu {
+  appearance: none;
+  max-width: 180px;
+  padding: 0 26px 0 11px;
+  font-size: 13px;
+  background: rgba(10, 15, 28, .45) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23a9b1d2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center / 12px;
+  cursor: pointer;
+}
+.menu option { background: #141a2e; }
+.filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-button svg { width: 15px; height: 15px; color: var(--soft); }
+.filter-button.on { border-color: color-mix(in srgb, var(--accent) 58%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.filter-button b { font-size: 12px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; }
+
+/* 필터 팝오버 */
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 8;
+  width: min(430px, calc(100vw - 40px));
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(18, 22, 38, .97);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .55), inset 0 0 0 1px var(--glass-border);
+  transform-origin: top right;
+  animation: pop-in .16s cubic-bezier(.2, .9, .3, 1);
+}
+@keyframes pop-in { from { opacity: 0; transform: scale(.96); } }
+.f-section { display: grid; gap: 7px; margin-bottom: 14px; }
+.f-label { font-size: 12px; font-weight: 600; color: var(--soft); }
+.grade-picks { display: flex; gap: 6px; }
+.grade-pick {
+  width: 42px; height: 42px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 12px;
+  background: rgba(38, 50, 84, .25);
+  color: var(--dim);
+  font: 700 15px "Space Grotesk", sans-serif;
+  cursor: pointer;
+  transition: background .1s ease, color .1s ease, border-color .1s ease, transform .1s ease;
+}
+.grade-pick:hover { color: var(--text); }
+.grade-pick:active { transform: scale(.95); }
+.grade-pick.on { color: var(--g); background: color-mix(in srgb, var(--g) 18%, transparent); border-color: color-mix(in srgb, var(--g) 60%, transparent); }
+.range { display: flex; align-items: center; gap: 8px; }
+.range .input { flex: 1; width: 100%; }
+.range span { color: var(--dim); }
+/* 기간: 브라우저 달력은 앱 언어를 따르지 않아 직접 그린다 */
+.date-range { position: relative; }
+.cal {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  width: 266px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #161c30;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .55), inset 0 0 0 1px var(--glass-border);
+}
+.cal.end { left: auto; right: 0; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal-head b { font-size: 13px; font-weight: 600; }
+.cal-nav { width: 30px; height: 28px; border: 0; border-radius: 8px; background: none; color: var(--soft); font-size: 18px; line-height: 1; cursor: pointer; }
+.cal-nav:hover { background: rgba(255, 255, 255, .1); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+#calWeek { font-size: 11px; color: var(--dim); text-align: center; line-height: 22px; }
+.cal-day { height: 30px; border: 0; border-radius: 8px; background: none; color: var(--text, #fff); font-size: 13px; cursor: pointer; }
+.cal-day:hover { background: rgba(255, 255, 255, .1); }
+.cal-day.other { color: var(--dim); }
+.cal-day.today { box-shadow: inset 0 0 0 1px var(--glass-border); }
+.cal-day.on { background: var(--accent); color: #fff; }
+.cal-foot { display: flex; justify-content: space-between; margin-top: 6px; }
+.input { padding: 0 10px; font-size: 13px; }
+.input:focus { outline: none; border-color: var(--accent); }
+.input.num { font-size: 14px; }
+.segmented { display: flex; padding: 2px; border-radius: 9px; background: rgba(10, 15, 28, .55); }
+.segmented button {
+  flex: 1;
+  height: 28px;
+  border: 0;
+  background: none;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--soft);
+  cursor: pointer;
+}
+.segmented button.active { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); font-weight: 600; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.two .menu { max-width: none; width: 100%; }
+.f-foot { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--soft); }
+.hint { font-size: 12px; line-height: 1.5; color: var(--soft); }
+.hint.error { color: #f2a6a0; }
+.hint.warn { color: var(--warn); }
+
+/* 진행 표시 */
+.top-progress { position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; overflow: hidden; pointer-events: none; }
+.top-progress i { display: block; height: 100%; width: 0; background: var(--accent); box-shadow: 0 0 8px var(--accent); transition: width .2s linear; }
+.top-progress.indet i { width: 30%; animation: slide 1.2s ease-in-out infinite alternate; }
+@keyframes slide { from { margin-left: 0; } to { margin-left: 70%; } }
+
+main { width: var(--width); margin: 0 auto; padding: 6px 0 16px; }
+.notice { display: flex; align-items: center; gap: 10px; padding: 2px 4px 10px; font-size: 13px; color: var(--soft); }
+
+/* 그룹 */
+.group {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--ma) 42%, transparent);
+  background-color: color-mix(in srgb, var(--ma) 15%, #06070b);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ma) 24%, transparent), 0 18px 42px rgba(0, 0, 0, .24);
+}
+.row {
+  position: absolute;
+  left: 0; right: 0;
+  height: var(--row-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.row:hover { background: rgba(255, 255, 255, .04); }
+.row:active { background: rgba(255, 255, 255, .08); }
+.row.selected { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 14px; }
+.row::after { content: ""; position: absolute; left: 98px; right: 0; bottom: 0; height: 1px; background: var(--separator); pointer-events: none; }
+.row.last::after { display: none; }
+
+/* 설치되지 않은 맵: 붉게 */
+.row.nomap { background: rgba(229, 83, 75, .09); }
+.row.nomap:hover { background: rgba(229, 83, 75, .14); }
+.row.nomap.selected { background: color-mix(in srgb, var(--accent) 18%, rgba(229, 83, 75, .12)); }
+.row.nomap .title { color: #f2a6a0; }
+.row.nomap .grade { opacity: .6; }
+
+.pick-hit { flex: none; align-self: stretch; width: 52px; margin-right: -8px; display: grid; place-items: center; cursor: pointer; transition: background .1s ease; }
+.pick-hit:hover { background: rgba(255, 255, 255, .06); }
+.pick-hit:active { background: rgba(255, 255, 255, .1); }
+.pick-hit.off { visibility: hidden; }
+.pick {
+  width: 20px; height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px rgba(169, 177, 210, .2);
+  transition: background .1s ease, box-shadow .1s ease;
+}
+.row:hover .pick { box-shadow: inset 0 0 0 1.5px rgba(169, 177, 210, .42); }
+.pick-hit:hover .pick, .row .pick-hit:hover .pick { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.static-row.toggle .pick { box-shadow: inset 0 0 0 1.5px rgba(169, 177, 210, .45); }
+.selected .pick { background: var(--accent); box-shadow: none; }
+.pick svg { width: 12px; height: 12px; opacity: 0; color: #fff; }
+.selected .pick svg { opacity: 1; }
+
+.grade {
+  flex: none;
+  width: 42px; height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font: 700 17px "Space Grotesk", sans-serif;
+  letter-spacing: -.02em;
+  color: var(--g);
+  background: color-mix(in srgb, var(--g) 16%, rgba(38, 50, 84, .45));
+  border: 1px solid color-mix(in srgb, var(--g) 30%, rgba(255, 255, 255, .1));
+}
+.g-SS { --g: #f6e98c; }
+.g-S { --g: #ecc95a; }
+.g-A { --g: #7fd45f; }
+.g-B { --g: #6ea3ff; }
+.g-C { --g: #bd92ec; }
+.g-D { --g: #ef7f9f; }
+.grade.silver { --g: #dbe4ee; }
+
+.info { flex: 1; display: grid; gap: 1px; }
+.title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.title-line { display: flex; align-items: center; gap: 6px; }
+.title-line .title { flex: 0 1 auto; }
+.title-line small { flex: none; font-size: 12px; color: var(--dim); }
+.refresh {
+  flex: none;
+  width: 22px; height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #f2a6a0;
+  cursor: pointer;
+  transition: background .1s ease, transform .1s ease;
+}
+.refresh:hover { background: rgba(255, 255, 255, .12); }
+.refresh:active { transform: scale(.9); }
+.refresh svg { width: 14px; height: 14px; }
+.refresh.loading { pointer-events: none; color: var(--soft); }
+.refresh.loading svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sub { font-size: 13px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub em { font-style: normal; color: #8fb6ff; font-weight: 600; }
+.stats { flex: none; display: grid; gap: 1px; text-align: right; }
+.stats b { font-weight: 600; font-size: 16px; }
+.stats span { font-size: 13px; color: var(--soft); }
+.x-btn {
+  flex: none;
+  align-self: stretch;
+  width: 44px;
+  margin-left: -4px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  cursor: pointer;
+  transition: background .1s ease;
+}
+.x-btn:hover { background: rgba(255, 255, 255, .06); }
+.x-btn:active { background: rgba(255, 255, 255, .1); }
+.x-btn svg { width: 14px; height: 14px; }
+.row.queued .info, .row.queued .stats, .row.queued .grade { opacity: .55; }
+.sub em.wait { color: var(--warn); }
+.history-side { flex: none; display: flex; align-items: center; gap: 8px; }
+
+.static-row { position: relative; min-height: var(--row-h); height: auto; padding: 12px 16px; cursor: default; }
+.static-row::after { left: 16px; }
+.static-row.toggle { cursor: pointer; padding-left: 0; }
+.static-row.toggle .pick-hit { margin-top: -12px; margin-bottom: -12px; }
+.static-row.toggle::after { left: 44px; }
+.static-row.off { opacity: .55; cursor: default; }
+.static-row.selected { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.static-row .note { display: block; margin-top: 3px; white-space: normal; color: var(--warn); }
+.size { flex: none; font-size: 14px; color: var(--soft); text-align: right; }
+
+.divider { display: flex; align-items: center; gap: 12px; padding: 14px 4px 10px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--soft); white-space: nowrap; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: rgba(169, 177, 210, .22); }
+
+.empty { padding: 72px 20px; text-align: center; color: var(--soft); }
+.empty strong { display: block; margin-bottom: 4px; font-size: 17px; font-weight: 700; color: var(--text); }
+
+/* 버튼 */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgba(41, 46, 57, .75);
+  transition: transform .1s ease-out, filter .1s ease-out, background .1s ease-out, border-color .1s ease-out;
+}
+.button:hover { background: #333947; border-color: #4a5162; }
+.button:active { transform: scale(.97); filter: brightness(.9); }
+.button:disabled { opacity: .4; pointer-events: none; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.button.primary:hover { background: #3d78e6; border-color: #3d78e6; }
+.button.danger { color: #f2867f; border-color: rgba(229, 83, 75, .6); background: transparent; }
+.button.danger:hover { background: rgba(229, 83, 75, .14); }
+.link { border: 0; background: none; padding: 2px 4px; border-radius: 5px; color: #8fb6ff; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.link:hover { text-decoration: underline; }
+.link:active { opacity: .6; }
+
+.queue-bar {
+  width: var(--width);
+  margin: 8px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #eed08a;
+  background: rgba(224, 168, 60, .1);
+  box-shadow: inset 0 0 0 1px rgba(224, 168, 60, .28);
+}
+.list-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 10px; font-size: 13px; color: var(--soft); }
+.spacer { flex: 1; }
+
+/* 하단 알약: 선택했거나 작업 중일 때만 나타나고, 내용만큼만 차지한다 */
+.dock { position: sticky; bottom: 16px; z-index: 5; display: flex; justify-content: center; margin-top: auto; padding-bottom: 16px; pointer-events: none; }
+.dock-inner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  max-width: calc(100vw - 40px);
+  min-height: 46px;
+  padding: 6px 7px 6px 18px;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(26px) saturate(170%);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--glass-border);
+  transform-origin: bottom center;
+  animation: dock-in .2s cubic-bezier(.2, .9, .3, 1);
+}
+@keyframes dock-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+.dock-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dock-group:empty { display: none; }
+.dock-inner .button { border-radius: 999px; }
+.dock-text { flex: 0 1 auto; font-size: 13px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock-text b { font-weight: 700; color: var(--text); }
+.backup-foot { display: flex; align-items: center; gap: 12px; padding: 16px 4px 8px; font-size: 13px; color: var(--soft); }
+.backup-foot.short { color: #f2a6a0; }
+
+/* 시트 */
+dialog {
+  margin: auto;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  padding: 22px;
+  border: 0;
+  border-radius: 20px;
+  color: var(--text);
+  background:
+    radial-gradient(130% 80% at 14% -14%, color-mix(in srgb, var(--ma) 42%, transparent) 0%, transparent 62%),
+    linear-gradient(165deg, color-mix(in srgb, var(--ma) 24%, #090b14) 0%, color-mix(in srgb, var(--ma) 11%, #090b14) 100%);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, .65),
+    inset 0 0 0 1px color-mix(in srgb, var(--ma) 55%, rgba(255, 255, 255, .1)),
+    inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+dialog.wide { width: min(580px, calc(100vw - 32px)); }
+dialog[open] { animation: sheet-in .2s cubic-bezier(.2, .9, .3, 1); }
+dialog::backdrop { background: rgba(4, 6, 12, .62); backdrop-filter: blur(4px); animation: fade-in .18s ease; }
+@keyframes sheet-in { from { opacity: 0; transform: scale(.97); } }
+@keyframes fade-in { from { opacity: 0; } }
+dialog h2 { font-size: 18px; font-weight: 700; }
+.facts { display: grid; gap: 7px; font-size: 14px; list-style: none; }
+.facts li { display: flex; justify-content: space-between; gap: 18px; }
+.facts span { color: var(--soft); flex: none; }
+.facts b { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.dialog-notes { display: grid; gap: 6px; margin-top: 14px; font-size: 13px; line-height: 1.5; color: var(--soft); }
+.dialog-notes .warn { color: var(--warn); }
+
+/* 확인 창: 왼쪽 정렬, 목록은 칸 안에서만 스크롤, 뒤로 삼각형이 떠오른다 */
+dialog.alert {
+  --tone: var(--accent);
+  width: min(470px, calc(100vw - 32px));
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #101528;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .65), inset 0 0 0 1px color-mix(in srgb, var(--tone) 38%, transparent);
+}
+dialog.alert.delete { --tone: #e5534b; background: #1b0d12; color: #f7eeee; }
+.alert-tris { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.alert-tris i {
+  position: absolute;
+  bottom: -90px;
+  background: var(--tone);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  will-change: transform;
+  animation: alert-rise linear infinite;
+}
+@keyframes alert-rise { to { transform: translate3d(var(--drift, 0px), -620px, 0) rotate(var(--spin, 0deg)); } }
+.alert-body { position: relative; z-index: 1; padding: 18px 20px 14px; }
+dialog.alert h2 { font-size: 16px; font-weight: 600; line-height: 1.35; }
+dialog.alert .dialog-notes { margin-top: 4px; gap: 2px; }
+dialog.alert.delete .dialog-notes { color: #c9aeb2; }
+.alert-list {
+  margin-top: 12px;
+  max-height: 214px;
+  overflow-y: auto;
+  border-radius: 9px;
+  background: rgba(6, 4, 8, .42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+dialog.alert.delete .alert-list::-webkit-scrollbar-thumb { background: rgba(229, 83, 75, .42); }
+.target-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-top: 1px solid rgba(255, 255, 255, .06); }
+.target-row:first-child { border-top: 0; }
+.target-row .grade { width: 28px; height: 28px; border-radius: 8px; font-size: 12px; }
+.target-row .info { gap: 0; }
+.target-row .title { font-size: 13px; font-weight: 500; }
+.target-row .sub { font-size: 11px; }
+.target-row.nomap .title { color: #f2a6a0; }
+.target-row .stats b { font-size: 13px; }
+.target-row .stats span { font-size: 11px; }
+dialog.alert.delete .target-row .sub, dialog.alert.delete .target-row .stats span { color: #b49a9e; }
+.target-more { padding: 7px 10px; font-size: 12px; color: var(--soft); text-align: center; border-top: 1px solid rgba(255, 255, 255, .06); }
+dialog.alert .facts {
+  margin-top: 12px !important;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  background: rgba(6, 4, 8, .42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+#onboard .field { grid-template-columns: minmax(0, 1fr); }
+#onboard .field-row, #onboard .menu { width: 100%; }
+#onboard .dialog-notes { margin-top: 26px; font-size: 12px; color: #9fb6e6; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+#settings .field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 26px; }
+#settings .field:first-of-type { margin-top: 16px; }
+#settings .setting-check, #settings .dialog-actions { margin-top: 26px; }
+.field-row { display: flex; gap: 8px; width: 100%; }
+.field-row .input { flex: 1 1 0; width: 0; min-width: 0; }
+.field-row .button { flex: none; }
+/* 설정은 팝업 장식 없이 차분한 표면을 쓴다 */
+dialog#settings { border-radius: 18px; background: #161c30; box-shadow: 0 24px 70px rgba(0, 0, 0, .6), inset 0 0 0 1px var(--glass-border); }
+.alert-foot { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+.alert-foot .button { height: 32px; padding: 0 14px; border-radius: 8px; font-size: 13px; }
+.button.fill-danger { background: #a8322b; border-color: #a8322b; color: #fff; }
+.button.fill-danger:hover { background: #bb3a32; border-color: #bb3a32; }
+.skip-row { position: relative; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--soft); cursor: pointer; user-select: none; }
+dialog.alert.delete .skip-row { color: #c9aeb2; }
+.skip-row:hover { color: var(--text); }
+.skip-row input { position: absolute; width: 14px; height: 14px; opacity: 0; cursor: pointer; }
+.skip-box { flex: none; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(201, 174, 178, .55); }
+.skip-box svg { width: 10px; height: 10px; opacity: 0; color: #fff; }
+.skip-row input:checked + .skip-box { background: var(--tone, var(--accent)); box-shadow: none; }
+.setting-check { margin-top: 18px; display: grid; gap: 4px; }
+.setting-check .skip-row { font-size: 13px; font-weight: 600; color: var(--text); }
+.setting-check .hint { padding-left: 21px; }
+.skip-row input:checked + .skip-box svg { opacity: 1; }
+.skip-row input:focus-visible + .skip-box { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 상세 */
+.detail-head { display: flex; align-items: flex-start; gap: 14px; }
+.detail-head .grade { width: 52px; height: 52px; font-size: 21px; border-radius: 14px; }
+.detail-head h2 { font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
+.detail-head h2.nomap { color: #f2a6a0; }
+.detail-head p { margin-top: 3px; font-size: 13px; color: var(--soft); overflow-wrap: anywhere; }
+.judges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.judges div { flex: 1; min-width: 56px; padding: 6px 4px; text-align: center; border-radius: 9px; background: rgba(10, 15, 28, .55); }
+.judges span { display: block; font-size: 11px; color: var(--soft); }
+.judges b { font-size: 15px; font-weight: 600; }
+.detail-status { font-size: 13px; color: var(--soft); line-height: 1.5; }
+.detail-status.error { color: #f2a6a0; }
+
+/* 알림 */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 82px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 9px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  transform: translateX(-50%);
+  background: #232b45;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5), inset 0 0 0 1px var(--glass-border);
+  transition: opacity .18s ease, transform .22s cubic-bezier(.2, .9, .3, 1);
+}
+.toast.hidden { opacity: 0; transform: translate(-50%, 8px); pointer-events: none; }
+.toast.error { color: #f7b4ae; }
+
+@media (max-width: 820px) {
+  .top-row { grid-template-columns: auto 1fr; }
+  .brand { display: none; }
+  .tabs button { padding: 0 10px; }
+  .tabs .count { display: none; }
+  .menu { max-width: 110px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  .triangles i { animation-play-state: paused; }
+  .button:active, .icon-button:active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .toolbar { background: #0a0d1a; backdrop-filter: none; }
+  .dock-inner { background: #141a2e; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  :root { --separator: rgba(255, 255, 255, .35); --soft: #d0d6ec; --glass-border: rgba(255, 255, 255, .5); }
+  .triangles { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="triangles" id="triangles" aria-hidden="true"></div>
+
+<div class="toolbar" id="toolbar">
+  <div class="toolbar-inner">
+    <div class="top-row">
+      <div class="brand">
+        <h1>REosu!</h1>
+        <a id="author" href="https://osu.ppy.sh/users/22386458" title="https://osu.ppy.sh/users/22386458">by Laptop User</a>
+      </div>
+      <div class="tabs" role="tablist" data-i18n-aria="aria.views" aria-label="화면">
+        <button role="tab" data-tab="all" class="active"><span data-i18n="tab.all">전체 기록</span><span class="count num" id="tabAll"></span></button>
+        <button role="tab" data-tab="list"><span data-i18n="tab.list">복구 후보</span><span class="count num" id="tabCount"></span></button>
+        <button role="tab" data-tab="history"><span data-i18n="tab.history">내역</span><span class="count num" id="tabHistory"></span></button>
+        <button role="tab" data-tab="backup" data-i18n="tab.backup">백업</button>
+      </div>
+      <div class="top-actions">
+        <span class="osu-status" id="osuStatus" data-i18n="osu.running" hidden>osu! 실행 중</span>
+        <button class="icon-button" id="rescanBtn" data-i18n-title="rescan" data-i18n-aria="rescan" title="다시 검색" aria-label="다시 검색">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 5v6h-6"/></svg>
+        </button>
+        <button class="icon-button" id="settingsBtn" data-i18n-title="settings" data-i18n-aria="settings" title="설정" aria-label="설정">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="8.5" cy="17" r="2.5"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="filters" id="filters">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+        <input id="search" type="search" data-i18n-ph="search.ph" data-i18n-aria="search" placeholder="곡 제목, 아티스트, 난이도, 플레이어" aria-label="검색" autocomplete="off" spellcheck="false">
+      </div>
+      <select class="menu" id="fSort" data-i18n-aria="sort" aria-label="정렬">
+        <option value="new" data-i18n="sort.new">최신순</option>
+        <option value="old" data-i18n="sort.old">오래된순</option>
+        <option value="score" data-i18n="sort.score">점수순</option>
+        <option value="acc" data-i18n="sort.acc">정확도순</option>
+      </select>
+      <button class="filter-button" id="filterBtn" aria-expanded="false" aria-controls="filterPop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        <span data-i18n="filter">필터</span> <b class="num" id="filterCount" hidden></b>
+      </button>
+
+      <div class="popover" id="filterPop" hidden>
+        <div class="f-section">
+          <div class="f-label" data-i18n="f.grade">등급</div>
+          <div class="grade-picks" id="fGrades"></div>
+        </div>
+        <div class="f-section">
+          <div class="f-label" data-i18n="f.score">점수</div>
+          <div class="range">
+            <input class="input num" id="fScoreMin" inputmode="numeric" data-i18n-ph="f.min" data-i18n-aria="f.minScore" placeholder="최소" aria-label="최소 점수" autocomplete="off">
+            <span>~</span>
+            <input class="input num" id="fScoreMax" inputmode="numeric" data-i18n-ph="f.max" data-i18n-aria="f.maxScore" placeholder="최대" aria-label="최대 점수" autocomplete="off">
+          </div>
+          <div class="hint error" id="fScoreHint" data-i18n="f.scoreError" hidden>최소 점수가 최대 점수보다 큽니다.</div>
+        </div>
+        <div class="f-section">
+          <div class="f-label" data-i18n="f.map">맵 보유</div>
+          <div class="segmented" id="fMap">
+            <button data-v="" class="active" data-i18n="f.any">전체</button>
+            <button data-v="yes" data-i18n="f.yes">있음</button>
+            <button data-v="no" data-i18n="f.no">없음</button>
+          </div>
+        </div>
+        <div class="f-section" id="fStatusWrap" hidden>
+          <div class="f-label" data-i18n="f.status">상태</div>
+          <div class="segmented" id="fStatus">
+            <button data-v="" class="active" data-i18n="f.any">전체</button>
+            <button data-v="saved" data-i18n="f.saved">로컬 랭킹</button>
+            <button data-v="missing" data-i18n="f.missing">복구 가능</button>
+          </div>
+        </div>
+        <div class="f-section">
+          <div class="two">
+            <div class="f-section" style="margin:0">
+              <div class="f-label" data-i18n="f.mode">모드</div>
+              <select class="menu" id="fMode" data-i18n-aria="f.mode" aria-label="모드">
+                <option value="" data-i18n="f.allModes">모든 모드</option>
+                <option value="0">osu!</option>
+                <option value="1">taiko</option>
+                <option value="2">catch</option>
+                <option value="3">mania</option>
+              </select>
+            </div>
+            <div class="f-section" style="margin:0">
+              <div class="f-label" data-i18n="f.player">플레이어</div>
+              <select class="menu" id="fPlayer" data-i18n-aria="f.player" aria-label="플레이어"></select>
+            </div>
+          </div>
+        </div>
+        <div class="f-section">
+          <div class="f-label" data-i18n="f.period">기간</div>
+          <div class="range date-range">
+            <input class="input num" id="fFrom" autocomplete="off" spellcheck="false" maxlength="10" data-i18n-ph="f.datePh" data-i18n-aria="f.from" aria-label="시작 날짜">
+            <span>~</span>
+            <input class="input num" id="fTo" autocomplete="off" spellcheck="false" maxlength="10" data-i18n-ph="f.datePh" data-i18n-aria="f.to" aria-label="끝 날짜">
+            <div class="cal" id="cal" hidden>
+              <div class="cal-head">
+                <button class="cal-nav" id="calPrev" tabindex="-1" data-i18n-title="f.prevMonth" data-i18n-aria="f.prevMonth">‹</button>
+                <b id="calTitle"></b>
+                <button class="cal-nav" id="calNext" tabindex="-1" data-i18n-title="f.nextMonth" data-i18n-aria="f.nextMonth">›</button>
+              </div>
+              <div class="cal-grid" id="calWeek" aria-hidden="true"></div>
+              <div class="cal-grid" id="calDays"></div>
+              <div class="cal-foot">
+                <button class="link" id="calClear" tabindex="-1" data-i18n="f.clear">지우기</button>
+                <button class="link" id="calToday" tabindex="-1" data-i18n="f.today">오늘</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="f-foot">
+          <span class="num" id="fResult"></span>
+          <button class="link" id="fReset" data-i18n="f.reset">초기화</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="top-progress" id="topProgress" hidden><i></i></div>
+</div>
+
+<div class="queue-bar" id="queueBar" hidden>
+  <span id="queueText"></span>
+  <span class="spacer"></span>
+  <button class="link" id="queueCancel" data-i18n="queue.cancelAll">모두 취소</button>
+</div>
+
+<main id="viewList">
+  <div class="notice" id="partialNote" hidden>
+    <span id="partialText"></span>
+    <button class="link" id="resumeBtn" data-i18n="resume">나머지 확인</button>
+  </div>
+  <div class="notice" id="runningNote" data-i18n="running.note" hidden>osu!가 켜져 있습니다. 복구와 삭제는 osu!가 꺼진 뒤 실행하며, 이번 세션 기록은 아직 파일에 없을 수 있습니다.</div>
+  <div class="list-head" id="listHead" hidden>
+    <span class="num" id="listCount"></span>
+    <button class="link" id="toggleAll"></button>
+  </div>
+  <div class="empty" id="empty" hidden></div>
+  <div class="empty" id="loading" hidden><strong data-i18n="loading.title">기록을 불러오는 중</strong><span data-i18n="loading.body">처음 실행할 때는 조금 걸릴 수 있습니다.</span></div>
+  <div class="group" id="list" role="listbox" aria-multiselectable="true" data-i18n-aria="aria.records" aria-label="기록"></div>
+</main>
+
+<main id="viewHistory" hidden>
+  <div class="group" id="historyList" style="margin-top:6px"></div>
+  <div class="empty" id="historyEmpty" hidden><strong data-i18n="history.empty.title">내역이 없습니다</strong><span data-i18n="history.empty.body">복구하거나 삭제하면 여기에 남고, 언제든 되돌릴 수 있습니다.</span></div>
+</main>
+
+<main id="viewBackup" hidden>
+  <div class="divider" style="padding-top:4px" data-i18n="backup.items">백업할 항목</div>
+  <div class="group" id="backupItems" role="group" data-i18n-aria="backup.items" aria-label="백업할 항목"></div>
+  <div class="divider" data-i18n="backup.where">백업 위치</div>
+  <div class="group">
+    <div class="row static-row last">
+      <div class="info">
+        <div class="title" id="backupDest">폴더를 골라 주세요</div>
+        <div class="sub" style="white-space:normal" data-i18n="backup.how">이 안에 날짜가 붙은 새 폴더를 만듭니다. osu! 폴더와 같은 구조로 복사되어, 그대로 붙여 넣으면 복원됩니다.</div>
+      </div>
+      <button class="button" id="pickBackup" data-i18n="browse">찾아보기</button>
+    </div>
+  </div>
+  <div class="notice" id="backupRunning" style="padding-top:12px" data-i18n="backup.running" hidden>osu!가 켜져 있으면 이번 세션 기록은 scores.db에 아직 없습니다. 끄고 백업하는 편이 안전합니다.</div>
+  <div class="backup-foot" id="backupFoot">
+    <span class="num" id="backupSummary"></span>
+    <span class="spacer"></span>
+    <button class="button primary" id="startBackup" data-i18n="backup.start">백업 시작</button>
+  </div>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="dock-inner">
+    <div class="dock-group">
+      <span class="dock-text num" id="dockText"></span>
+      <button class="link" id="clearSel" data-i18n="clear" hidden>해제</button>
+    </div>
+    <div class="dock-group">
+      <button class="button" id="stopJob" data-i18n="stop" hidden>중지</button>
+      <button class="button primary" id="recoverSel" hidden></button>
+      <button class="button danger" id="deleteSel" hidden></button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dialog" class="alert" aria-labelledby="dlgTitle">
+  <div class="alert-tris" id="dlgTris" aria-hidden="true"></div>
+  <div class="alert-body">
+    <h2 id="dlgTitle"></h2>
+    <div class="dialog-notes" id="dlgNotes"></div>
+    <div class="alert-list" id="dlgTarget" hidden></div>
+    <ul class="facts" id="dlgFacts"></ul>
+    <div class="alert-foot">
+      <label class="skip-row" id="dlgSkipRow" hidden>
+        <input type="checkbox" id="dlgSkip">
+        <span class="skip-box"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2.5 6.2 2.4 2.4 4.6-5"/></svg></span>
+        <span data-i18n="dlg.skip">이번 실행에서 다시 띄우지 않기</span>
+      </label>
+      <span class="spacer"></span>
+      <button class="button" id="dlgCancel" data-i18n="cancel">취소</button>
+      <button class="button" id="dlgOk"></button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="onboard" class="alert" aria-labelledby="onTitle">
+  <div class="alert-tris" id="onTris" aria-hidden="true"></div>
+  <div class="alert-body">
+    <h2 id="onTitle" data-i18n="on.title">REosu!</h2>
+    <div class="field" style="margin-top:14px">
+      <label for="onLang" data-i18n="set.lang">언어</label>
+      <select class="menu" id="onLang" style="max-width:none;width:100%">
+        <option value="auto" data-i18n="set.langAuto">자동</option>
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+        <option value="zh-CN">简体中文</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label for="onOsu" data-i18n="set.osu">osu! 폴더</label>
+      <select class="menu" id="onFound" style="max-width:none;width:100%" data-i18n-aria="on.pickFolder" hidden></select>
+      <div class="field-row">
+        <input class="input" id="onOsu" spellcheck="false" data-i18n-ph="set.osuPh">
+        <button class="button" id="onPick" data-i18n="browse">찾아보기</button>
+      </div>
+      <div class="hint" id="onHint"></div>
+    </div>
+    <div class="dialog-notes">
+      <div data-i18n="on.scanNote"></div>
+      <div data-i18n="on.lookupNote"></div>
+    </div>
+    <div class="alert-foot">
+      <span class="spacer"></span>
+      <button class="button primary" id="onStart" data-i18n="on.start">시작</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="detail" class="wide" aria-labelledby="detTitle">
+  <div class="detail-head">
+    <div class="grade" id="detGrade"></div>
+    <div style="flex:1">
+      <h2 id="detTitle"></h2>
+      <p id="detSub"></p>
+    </div>
+  </div>
+  <div class="divider" id="detMapLabel" data-i18n="det.map">맵</div>
+  <div class="detail-status" id="detStatus" hidden></div>
+  <ul class="facts" id="detMap"></ul>
+  <div class="hint" id="detSource" style="margin-top:8px" hidden></div>
+  <div class="divider" data-i18n="det.play">플레이</div>
+  <ul class="facts" id="detPlay"></ul>
+  <div class="judges num" id="detJudges"></div>
+  <div class="dialog-actions">
+    <button class="button" id="detClose" data-i18n="close">닫기</button>
+    <button class="button danger" id="detDelete" data-i18n="delete">삭제</button>
+    <button class="button" id="detWeb" data-i18n="det.web" hidden>osu! 페이지 열기</button>
+    <button class="button primary" id="detRecover" data-i18n="det.recover" hidden>이 기록 복구</button>
+  </div>
+</dialog>
+
+<dialog id="settings" class="wide" aria-labelledby="setTitle">
+  <h2 id="setTitle" data-i18n="settings">설정</h2>
+  <div class="field">
+    <label for="langSel" data-i18n="set.lang">언어</label>
+    <select class="menu" id="langSel" style="max-width:220px">
+      <option value="auto" data-i18n="set.langAuto">자동</option>
+      <option value="ko">한국어</option>
+      <option value="en">English</option>
+      <option value="zh-CN">简体中文</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="osuDir" data-i18n="set.osu">osu! 폴더</label>
+    <div class="field-row">
+      <input class="input" id="osuDir" spellcheck="false" data-i18n-ph="set.osuPh" placeholder="예: C:\Users\이름\AppData\Local\osu!">
+      <button class="button" id="pickOsu" data-i18n="browse">찾아보기</button>
+    </div>
+    <div class="hint" id="osuHint"></div>
+  </div>
+  <div class="field">
+    <label for="replayDir" data-i18n="set.replay">리플레이 폴더</label>
+    <div class="field-row">
+      <input class="input" id="replayDir" spellcheck="false">
+      <button class="button" id="pickReplay" data-i18n="browse">찾아보기</button>
+    </div>
+    <div class="hint" data-i18n="set.replayHint">비워 두면 osu!가 자동 저장하는 Data\r 폴더를 씁니다.</div>
+  </div>
+  <div class="field">
+    <label for="trashDir" data-i18n="set.trash">삭제 보관 폴더</label>
+    <div class="field-row">
+      <input class="input" id="trashDir" spellcheck="false">
+      <button class="button" id="pickTrash" data-i18n="browse">찾아보기</button>
+    </div>
+    <div class="hint" id="trashHint">삭제한 기록의 리플레이를 이곳에 보관합니다. 비워 두면 Data\r\_deleted를 씁니다.</div>
+  </div>
+  <div class="setting-check">
+    <label class="skip-row">
+      <input type="checkbox" id="dragSelect">
+      <span class="skip-box"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2.5 6.2 2.4 2.4 4.6-5"/></svg></span>
+      <span data-i18n="set.drag">체크 칸을 드래그해서 여러 개 선택</span>
+    </label>
+    <div class="hint" data-i18n="set.dragHint">줄 왼쪽의 체크 칸을 누른 채 위아래로 움직이면 지나간 줄이 함께 선택됩니다.</div>
+  </div>
+  <div class="dialog-actions">
+    <button class="button primary" id="setDone" data-i18n="done" autofocus>완료</button>
+  </div>
+</dialog>
+
+<div class="toast hidden" id="toast" role="status" aria-live="polite">
+  <span id="toastText"></span>
+  <button class="link" id="toastAction" hidden></button>
+</div>
+
+<script>
+"use strict";
+const TOKEN = new URLSearchParams(location.search).get("t");
+const MODES = ["osu!", "taiko", "catch", "mania"];
+const GRADES = ["SS", "S", "A", "B", "C", "D"];
+const CONFIRM_OVER = 50;
+const BACKUP = [
+  { key: "songs", title: "backup.songs.t", desc: "backup.songs.d" },
+  { key: "skins", title: "backup.skins.t", desc: "backup.skins.d" },
+  { key: "scores", title: "backup.scores.t", desc: "backup.scores.d", on: true },
+  { key: "collection", title: "backup.collection.t", rawDesc: "collection.db", on: true },
+  { key: "screenshots", title: "backup.screenshots.t", desc: "backup.screenshots.d" },
+  { key: "cfg", title: "backup.cfg.t", desc: "backup.cfg.d", note: "backup.cfg.note" },
+];
+const $ = id => document.getElementById(id);
+let STRINGS = {}, LANG = "ko";
+const fmtN = n => n.toLocaleString(LANG);
+/* 숫자 인자는 언어에 맞게 쓰고, {s}는 영어 복수형에 쓴다. */
+function t(key, params = {}) {
+  let text = (STRINGS[LANG] && STRINGS[LANG][key]) || (STRINGS.en && STRINGS.en[key]) || key;
+  if (typeof params.n === "number") text = text.replace("{s}", params.n === 1 ? "" : "s");
+  for (const [k, v] of Object.entries(params)) text = text.split(`{${k}}`).join(typeof v === "number" ? fmtN(v) : v);
+  return text.split("{s}").join("");
+}
+function applyStatic() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-aria]").forEach(el => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
+}
+const pad = n => String(n).padStart(2, "0");
+const THIS_YEAR = new Date().getFullYear();
+const fmtDay = d => d.toLocaleDateString(LANG, d.getFullYear() === THIS_YEAR
+  ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" });
+const fmtWhen = ms => {
+  const d = new Date(ms);
+  return `${fmtDay(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fmtBytes = n => {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${i ? n.toFixed(n >= 100 ? 0 : 1) : n}${units[i]}`;
+};
+const fmtLen = s => `${Math.floor(s / 60)}:${pad(s % 60)}`;
+
+const state = {
+  tab: "all", items: [], saved: [], view: [], selected: new Set(), anchor: null, stats: null,
+  config: null, history: [], job: null, osu: false, lastSeq: 0, scanned: false, focusId: null,
+  settingsBase: "", sizes: {}, backup: new Set(BACKUP.filter(b => b.on).map(b => b.key)),
+  f: { grades: new Set(), map: "", status: "" }, lookups: new Set(), notFound: new Set(),
+  queued: new Map(), queueOps: [], queueRev: -1, queueCounts: {}, skipDeleteWarn: false,
+};
+const keyOf = it => `${it.md5}:${it.ts}`;
+const isQueued = it => state.queued.has(keyOf(it));
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "X-Token": TOKEN, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(t("err.request", { x: String(res.status) }));
+  return res.json();
+}
+
+function div(cls, text) {
+  const el = document.createElement("div");
+  el.className = cls;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+let toastTimer;
+function toast(msg, { error = false, action = null, onAction = null } = {}) {
+  const t = $("toast");
+  $("toastText").textContent = msg;
+  t.className = "toast" + (error ? " error" : "");
+  const btn = $("toastAction");
+  btn.hidden = !action;
+  btn.textContent = action || "";
+  btn.onclick = () => { t.classList.add("hidden"); if (onAction) onAction(); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add("hidden"), error || action ? 7000 : 3500);
+}
+
+/* ---- 삼각형 ---- */
+function buildTriangles() {
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 24; i++) {
+    const size = rand(36, 170), dur = rand(16, 42);
+    const el = document.createElement("i");
+    el.style.cssText = `left:${rand(-6, 100).toFixed(2)}%;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;` +
+      `opacity:${rand(.04, .13).toFixed(3)};animation-duration:${dur.toFixed(2)}s;animation-delay:${(-rand(0, dur)).toFixed(2)}s;` +
+      `--drift:${rand(-34, 34).toFixed(1)}px;--spin:${rand(-22, 22).toFixed(1)}deg`;
+    frag.append(el);
+  }
+  $("triangles").append(frag);
+}
+
+/* ---- 화면 전환 ---- */
+const isRecordTab = () => state.tab === "list" || state.tab === "all";
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll(".tabs button").forEach(b => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on);
+  });
+  $("viewList").hidden = !isRecordTab();
+  $("viewHistory").hidden = tab !== "history";
+  $("viewBackup").hidden = tab !== "backup";
+  $("filters").hidden = !isRecordTab();
+  $("fStatusWrap").hidden = tab !== "all";
+  closeFilter();
+  scrollTo(0, 0);
+  if (isRecordTab()) {
+    fillPlayers();
+    applyFilters();
+  } else {
+    updateChrome();
+  }
+  if (tab === "history") loadHistory();
+  if (tab === "backup") { renderBackup(); api("/api/backup/sizes", {}); }
+}
+
+/* ---- 필터 ---- */
+const sources = () => state.tab === "all" ? state.items.concat(state.saved) : state.items;
+const digits = el => { const v = el.value.replace(/[^0-9]/g, ""); if (v !== el.value) el.value = v; return v === "" ? null : +v; };
+
+function applyFilters(keepAnchor) {
+  const f = state.f;
+  const q = $("search").value.trim().toLowerCase();
+  const mode = $("fMode").value, player = $("fPlayer").value;
+  const min = digits($("fScoreMin")), max = digits($("fScoreMax"));
+  const from = $("fFrom").value ? new Date($("fFrom").value + "T00:00").getTime() : null;
+  const to = $("fTo").value ? new Date($("fTo").value + "T00:00").getTime() + 86400000 : null;
+  $("fScoreHint").hidden = !(min !== null && max !== null && min > max);
+  const all = state.tab === "all";
+  const by = {
+    new: (a, b) => b.t - a.t,
+    old: (a, b) => a.t - b.t,
+    score: (a, b) => b.score - a.score || b.t - a.t,
+    acc: (a, b) => b.acc - a.acc || b.t - a.t,
+  }[$("fSort").value];
+  state.view = sources().filter(it => {
+    if (f.grades.size && !f.grades.has(it.grade)) return false;
+    if (min !== null && it.score < min) return false;
+    if (max !== null && it.score > max) return false;
+    if (f.map === "yes" && !it.name) return false;
+    if (f.map === "no" && it.name) return false;
+    if (all && f.status === "saved" && it.id > 0) return false;
+    if (all && f.status === "missing" && it.id < 0) return false;
+    if (mode !== "" && it.mode !== +mode) return false;
+    if (player !== "" && it.player !== player.slice(1)) return false;
+    if (from !== null && it.t < from) return false;
+    if (to !== null && it.t >= to) return false;
+    if (q && !it.hay.includes(q)) return false;
+    return true;
+  }).sort(by);
+  if (!keepAnchor) state.anchor = null;
+  $("list").style.height = `${state.view.length * rowH()}px`;
+
+  const active = (f.grades.size ? 1 : 0) + (min !== null || max !== null ? 1 : 0) + (f.map ? 1 : 0) +
+    (all && f.status ? 1 : 0) + (mode !== "" ? 1 : 0) + (player !== "" ? 1 : 0) + (from !== null || to !== null ? 1 : 0);
+  $("filterCount").hidden = !active;
+  $("filterCount").textContent = active;
+  $("filterBtn").classList.toggle("on", active > 0);
+  $("fResult").textContent = t("count.items", { n: state.view.length });
+  updateChrome();
+  scheduleRender();
+}
+
+function rowH() {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--row-h")) || 68;
+}
+
+function fillPlayers() {
+  const counts = new Map();
+  for (const it of sources()) counts.set(it.player, (counts.get(it.player) || 0) + 1);
+  const sel = $("fPlayer");
+  const keep = sel.value;
+  sel.replaceChildren(new Option(t("f.allPlayers"), ""));
+  [...counts].sort((a, b) => b[1] - a[1]).forEach(([p, n]) => {
+    sel.append(new Option(`${p.trim() || t("f.noName")} (${fmtN(n)})`, "=" + p));
+  });
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : "";
+}
+
+function buildFilterUI() {
+  $("fGrades").replaceChildren(...GRADES.map(g => {
+    const b = document.createElement("button");
+    b.className = `grade-pick g-${g}`;
+    b.textContent = g;
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      const on = !state.f.grades.has(g);
+      if (on) state.f.grades.add(g); else state.f.grades.delete(g);
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on);
+      scrollTo(0, 0);
+      applyFilters();
+    });
+    return b;
+  }));
+  for (const [id, key] of [["fMap", "map"], ["fStatus", "status"]]) {
+    $(id).addEventListener("click", e => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      state.f[key] = b.dataset.v;
+      [...$(id).children].forEach(c => c.classList.toggle("active", c === b));
+      scrollTo(0, 0);
+      applyFilters();
+    });
+  }
+}
+
+function resetFilters() {
+  state.f.grades.clear();
+  state.f.map = state.f.status = "";
+  document.querySelectorAll(".grade-pick").forEach(b => { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); });
+  for (const id of ["fMap", "fStatus"]) [...$(id).children].forEach((c, i) => c.classList.toggle("active", i === 0));
+  for (const id of ["fScoreMin", "fScoreMax", "fFrom", "fTo"]) $(id).value = "";
+  closeCalendar();
+  $("fMode").value = "";
+  $("fPlayer").value = "";
+  scrollTo(0, 0);
+  applyFilters();
+}
+
+function closeFilter() {
+  $("filterPop").hidden = true;
+  $("filterBtn").setAttribute("aria-expanded", "false");
+}
+
+/* ---- 기간 달력 ---- */
+const cal = { input: null, year: 0, month: 0 };
+const pad2 = n => String(n).padStart(2, "0");
+const isoDay = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/* 2026-11-5, 2026.11.05, 2026/11/5, 20261105 를 받아 YYYY-MM-DD로 맞춘다. 틀리면 null. */
+function parseDay(text) {
+  const m = text.trim().match(/^(\d{4})\D?(\d{1,2})\D?(\d{1,2})$/);
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] ? isoDay(d) : null;
+}
+
+function setDay(value) {
+  const input = cal.input;
+  input.value = value;
+  closeCalendar();
+  input.dispatchEvent(new Event("change"));
+}
+
+function renderCalendar() {
+  const first = new Date(cal.year, cal.month, 1);
+  $("calTitle").textContent = first.toLocaleDateString(LANG, { year: "numeric", month: "long" });
+  const weekStart = LANG === "zh-CN" ? 1 : 0;
+  // 2023-01-01은 일요일이다
+  $("calWeek").replaceChildren(...Array.from({ length: 7 }, (_, i) =>
+    div("", new Date(2023, 0, 1 + weekStart + i).toLocaleDateString(LANG, { weekday: "narrow" }))));
+  const today = isoDay(new Date());
+  const start = 1 - ((first.getDay() - weekStart + 7) % 7);
+  $("calDays").replaceChildren(...Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(cal.year, cal.month, start + i);
+    const iso = isoDay(d);
+    const b = document.createElement("button");
+    b.className = "cal-day num" + (d.getMonth() !== cal.month ? " other" : "") + (iso === today ? " today" : "") + (iso === cal.input.value ? " on" : "");
+    b.tabIndex = -1;
+    b.textContent = d.getDate();
+    b.addEventListener("click", () => setDay(iso));
+    return b;
+  }));
+}
+
+function openCalendar(input) {
+  if (cal.input === input && !$("cal").hidden) return;
+  cal.input = input;
+  const shown = parseDay(input.value);
+  const base = shown ? new Date(shown + "T00:00") : new Date();
+  cal.year = base.getFullYear();
+  cal.month = base.getMonth();
+  $("cal").classList.toggle("end", input.id === "fTo");
+  renderCalendar();
+  $("cal").hidden = false;
+}
+
+function closeCalendar() {
+  $("cal").hidden = true;
+}
+
+function initCalendar() {
+  // 달력을 눌러도 입력칸의 포커스를 유지한다. 포커스가 나가면 달력을 닫는다.
+  $("cal").addEventListener("pointerdown", e => e.preventDefault());
+  const step = n => {
+    const d = new Date(cal.year, cal.month + n, 1);
+    cal.year = d.getFullYear();
+    cal.month = d.getMonth();
+    renderCalendar();
+  };
+  $("calPrev").addEventListener("click", () => step(-1));
+  $("calNext").addEventListener("click", () => step(1));
+  $("calClear").addEventListener("click", () => setDay(""));
+  $("calToday").addEventListener("click", () => setDay(isoDay(new Date())));
+  for (const input of [$("fFrom"), $("fTo")]) {
+    let before = "";
+    input.addEventListener("focus", () => { before = input.value; openCalendar(input); });
+    input.addEventListener("click", () => openCalendar(input));
+    input.addEventListener("blur", closeCalendar);
+    // 앞서 등록한 필터 적용보다 먼저 값을 맞추도록 캡처 단계에서 처리한다
+    input.addEventListener("change", () => {
+      const text = input.value.trim();
+      input.value = text ? parseDay(text) ?? before : "";
+      before = input.value;
+    }, true);
+    input.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !$("cal").hidden) { e.stopPropagation(); closeCalendar(); }
+      else if (e.key === "Enter") { input.blur(); input.focus(); closeCalendar(); }
+    });
+  }
+}
+
+/* ---- 보이는 줄만 그리기 ---- */
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderRows(); });
+}
+
+const CHECK_SVG = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2.5 6.2 2.4 2.4 4.6-5"/></svg>';
+const REFRESH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 5v6h-6"/></svg>';
+const LINK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>';
+const X_SVG = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m3 3 6 6M9 3l-6 6"/></svg>';
+
+function gradeEl(it) {
+  const silver = it.silver && (it.grade === "S" || it.grade === "SS");
+  return div(`g-${it.grade}` + (silver ? " silver" : "") + " grade", it.grade);
+}
+
+function rowEl(it, top, isLast) {
+  const selected = state.selected.has(it.id);
+  const waiting = state.queued.get(keyOf(it));
+  const row = div("row" + (selected ? " selected" : "") + (isLast ? " last" : "") + (it.name ? "" : " nomap") + (waiting ? " queued" : ""));
+  row.style.top = `${top}px`;
+  row.dataset.id = it.id;
+  row.tabIndex = 0;
+  row.setAttribute("role", "option");
+  row.setAttribute("aria-selected", selected);
+
+  const hit = div("pick-hit" + (waiting ? " off" : ""));
+  const pick = div("pick");
+  pick.innerHTML = CHECK_SVG;
+  hit.append(pick);
+
+  const info = div("info");
+  const label = it.name || it.online || t("row.noMap");
+  const title = div("title", label);
+  title.title = label;
+  const line = div("title-line");
+  line.append(title);
+  if (!it.name && !it.online) {
+    const missing = state.notFound.has(it.md5);
+    if (missing) {
+      const small = document.createElement("small");
+      small.textContent = t("row.notOnServer");
+      line.append(small);
+    }
+    const btn = document.createElement("button");
+    const loading = state.lookups.has(it.md5);
+    btn.className = "refresh" + (loading ? " loading" : "");
+    btn.title = t("row.fetch");
+    btn.setAttribute("aria-label", t("row.fetch"));
+    btn.tabIndex = -1;
+    btn.innerHTML = REFRESH_SVG;
+    line.append(btn);
+  } else if (!it.name && it.set_id) {
+    // 조회에 성공한 맵: 새로고침 아이콘 자리에서 osu! 페이지로 바로 간다
+    const link = document.createElement("button");
+    link.className = "refresh map-link";
+    link.title = t("det.web");
+    link.setAttribute("aria-label", t("det.web"));
+    link.tabIndex = -1;
+    link.innerHTML = LINK_SVG;
+    line.append(link);
+  }
+  const sub = div("sub");
+  const parts = [MODES[it.mode], fmtWhen(it.t)];
+  if (it.player.trim()) parts.push(it.player);
+  if (it.mods.length) parts.push(it.mods.join(" "));
+  if (waiting || (it.id > 0 && state.tab === "all")) {
+    const em = document.createElement("em");
+    if (waiting) em.className = "wait";
+    em.textContent = waiting ? t(waiting === "delete" ? "row.waitDelete" : "row.waitRecover") : t("row.recoverable");
+    sub.append(em, "  ·  ");
+  }
+  sub.append(parts.join("  ·  "));
+  info.append(line, sub);
+
+  const stats = div("stats num");
+  const score = document.createElement("b");
+  score.textContent = fmtN(it.score);
+  const acc = document.createElement("span");
+  acc.textContent = `${(it.acc * 100).toFixed(2)}%`;
+  stats.append(score, acc);
+
+  const x = document.createElement("button");
+  x.className = "x-btn";
+  x.tabIndex = -1;
+  x.title = t(waiting ? "row.cancelWait" : "delete");
+  x.setAttribute("aria-label", x.title);
+  x.innerHTML = X_SVG;
+  row.append(hit, gradeEl(it), info, stats, x);
+  return row;
+}
+
+function renderRows() {
+  if (!isRecordTab()) return;
+  const list = $("list");
+  const h = rowH();
+  const rect = list.getBoundingClientRect();
+  const n = state.view.length;
+  const first = Math.max(0, Math.floor(-rect.top / h) - 6);
+  const last = Math.min(n, Math.ceil((innerHeight - rect.top) / h) + 6);
+  const frag = document.createDocumentFragment();
+  for (let i = first; i < last; i++) frag.append(rowEl(state.view[i], i * h, i === n - 1));
+  list.replaceChildren(frag);
+  if (state.focusId !== null) {
+    const el = list.querySelector(`[data-id="${state.focusId}"]`);
+    if (el) el.focus({ preventScroll: true });
+  }
+}
+
+/* ---- 선택 / 줄 클릭 ---- */
+function toggleRow(id, shift) {
+  const pos = state.view.findIndex(it => it.id === id);
+  if (pos < 0 || isQueued(state.view[pos])) return;
+  const on = !state.selected.has(id);
+  if (shift && state.anchor !== null) {
+    const a = Math.min(state.anchor, pos), b = Math.max(state.anchor, pos);
+    for (let i = a; i <= b; i++) {
+      if (isQueued(state.view[i])) continue;
+      const rowId = state.view[i].id;
+      if (on) state.selected.add(rowId); else state.selected.delete(rowId);
+    }
+  } else if (on) state.selected.add(id);
+  else state.selected.delete(id);
+  state.anchor = pos;
+  updateChrome();
+  scheduleRender();
+}
+
+function onListClick(e) {
+  if (state.swallowClick) {
+    state.swallowClick = false;
+    return;
+  }
+  const row = e.target.closest(".row");
+  if (!row) return;
+  state.focusId = null;
+  const id = +row.dataset.id;
+  if (e.target.closest(".map-link")) {
+    const it = state.view.find(x => x.id === id);
+    if (it) api("/api/open_map", { set_id: it.set_id, map_id: it.map_id });
+    return;
+  }
+  if (e.target.closest(".refresh")) {
+    const it = state.view.find(x => x.id === id);
+    if (it) refreshMap(it.md5);
+    return;
+  }
+  if (e.target.closest(".x-btn")) {
+    const it = state.view.find(x => x.id === id);
+    if (it) {
+      if (isQueued(it)) api("/api/queue/remove", { key: keyOf(it) });
+      else requestDelete([it]);
+    }
+    return;
+  }
+  if (e.target.closest(".pick-hit") || e.shiftKey || e.ctrlKey || e.metaKey) {
+    toggleRow(id, e.shiftKey);
+  } else {
+    const it = state.view.find(x => x.id === id);
+    if (it) openDetail(it);
+  }
+}
+
+function onListKey(e) {
+  const row = e.target.closest(".row");
+  if (!row) return;
+  const id = +row.dataset.id;
+  if (e.key === " ") {
+    e.preventDefault();
+    state.focusId = id;
+    toggleRow(id, e.shiftKey);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const it = state.view.find(x => x.id === id);
+    if (it) openDetail(it);
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const pos = state.view.findIndex(it => it.id === id) + (e.key === "ArrowDown" ? 1 : -1);
+    if (pos < 0 || pos >= state.view.length) return;
+    state.focusId = state.view[pos].id;
+    const y = $("list").getBoundingClientRect().top + pos * rowH();
+    const topLimit = $("toolbar").offsetHeight + 8, bottomLimit = innerHeight - 90;
+    if (y < topLimit) scrollBy(0, y - topLimit);
+    else if (y + rowH() > bottomLimit) scrollBy(0, y + rowH() - bottomLimit);
+    scheduleRender();
+  }
+}
+
+/* ---- 드래그 선택 (설정에서 켠 경우만) ----
+   목록은 보이는 줄만 다시 그리므로 줄 요소가 아니라 좌표로 어느 줄인지 계산한다. */
+let drag = null;
+
+function rowIndexAt(clientY) {
+  const i = Math.floor((clientY - $("list").getBoundingClientRect().top) / rowH());
+  return Math.max(0, Math.min(state.view.length - 1, i));
+}
+
+function dragTo(index) {
+  const step = index >= drag.last ? 1 : -1;
+  for (let i = drag.last; i !== index + step; i += step) {
+    const it = state.view[i];
+    if (!it || isQueued(it)) continue;
+    if (drag.on) state.selected.add(it.id); else state.selected.delete(it.id);
+  }
+  drag.last = index;
+  state.anchor = index;
+  updateChrome();
+  scheduleRender();
+}
+
+function dragEdgeScroll() {
+  if (!drag) return;
+  const top = $("toolbar").offsetHeight + 30, bottom = innerHeight - 30;
+  const dy = drag.y < top ? drag.y - top : drag.y > bottom ? drag.y - bottom : 0;
+  if (dy) {
+    scrollBy(0, dy / 3);
+    dragTo(rowIndexAt(drag.y));
+  }
+  requestAnimationFrame(dragEdgeScroll);
+}
+
+function onDragStart(e) {
+  if (!state.config || !state.config.drag_select) return;
+  if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+  if (!e.target.closest(".pick-hit")) return;
+  const index = rowIndexAt(e.clientY);
+  const it = state.view[index];
+  if (!it || isQueued(it)) return;
+  e.preventDefault();
+  drag = { on: !state.selected.has(it.id), last: index, y: e.clientY };
+  state.swallowClick = true;  // 이 동작은 누르는 순간 처리하므로 뒤따르는 클릭은 무시한다
+  dragTo(index);
+  $("list").setPointerCapture(e.pointerId);
+  requestAnimationFrame(dragEdgeScroll);
+}
+
+function onDragMove(e) {
+  if (!drag) return;
+  drag.y = e.clientY;
+  dragTo(rowIndexAt(e.clientY));
+}
+
+function onDragEnd() {
+  if (!drag) return;
+  drag = null;
+  setTimeout(() => { state.swallowClick = false; }, 60);
+}
+
+/* ---- 키보드: 입력칸에 있을 때와 창이 떠 있을 때는 원래 동작을 둔다 ---- */
+function onGlobalKey(e) {
+  if (document.querySelector("dialog[open]") || !isRecordTab()) return;
+  const el = document.activeElement;
+  if (el && el.matches("input, textarea, select")) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    for (const it of state.view) {
+      if (!isQueued(it)) state.selected.add(it.id);
+    }
+  } else if (e.key === "Escape" && $("filterPop").hidden && state.selected.size) {
+    state.selected.clear();
+  } else if (e.key === "Delete" && !e.repeat) {
+    const focused = el && el.closest && el.closest("#list .row");
+    const items = state.selected.size ? [...state.selected].map(findItem).filter(Boolean)
+      : focused ? [state.view.find(it => it.id === +focused.dataset.id)].filter(Boolean) : [];
+    const targets = items.filter(it => !isQueued(it));
+    if (targets.length) requestDelete(targets);
+    return;
+  } else {
+    return;
+  }
+  state.anchor = null;
+  updateChrome();
+  scheduleRender();
+}
+
+/* ---- 설치되지 않은 맵 정보 ---- */
+function applyMapInfo(md5, info) {
+  const name = info.title ? `${info.artist} - ${info.title} [${info.version}]` : info.version;
+  state.notFound.delete(md5);
+  for (const x of state.items.concat(state.saved)) {
+    if (x.md5 === md5 && !x.name) {
+      x.online = name;
+      x.set_id = info.set_id;
+      x.map_id = info.map_id;
+      x.hay =`${name} ${x.player} ${x.md5}`.toLowerCase();
+    }
+  }
+  scheduleRender();
+}
+
+async function refreshMap(md5) {
+  if (state.lookups.has(md5)) return;
+  state.lookups.add(md5);
+  scheduleRender();
+  let info;
+  try {
+    info = await api("/api/lookup", { md5 });
+  } catch (e) {
+    info = { error: t("det.lookupFail") };
+  }
+  state.lookups.delete(md5);
+  if (info.error) toast(info.error, { error: true });
+  else if (info.found) applyMapInfo(md5, info);
+  else state.notFound.add(md5);
+  scheduleRender();
+}
+
+/* ---- 상세 ---- */
+let detailReq = 0;
+
+function factRows(ul, rows) {
+  ul.replaceChildren(...rows.map(([k, v]) => {
+    const li = document.createElement("li");
+    const a = document.createElement("span");
+    a.textContent = k;
+    const b = document.createElement("b");
+    b.textContent = v;
+    li.append(a, b);
+    return li;
+  }));
+}
+
+function judgeRows(it) {
+  const [c300, c100, c50, geki, katu, miss] = it.counts;
+  if (it.mode === 3) return [["MAX", geki], ["300", c300], ["200", katu], ["100", c100], ["50", c50], ["MISS", miss]];
+  if (it.mode === 2) return [["300", c300], ["100", c100], ["50", c50], ["DROP", katu], ["MISS", miss]];
+  if (it.mode === 1) return [["GREAT", c300], ["GOOD", c100], ["MISS", miss]];
+  return [["300", c300], ["100", c100], ["50", c50], ["MISS", miss]];
+}
+
+function renderLookup(it, info) {
+  const status = $("detStatus");
+  const web = $("detWeb");
+  status.hidden = true;
+  status.className = "detail-status";
+  web.hidden = true;
+  if (info.error) {
+    status.hidden = false;
+    status.className = "detail-status error";
+    status.textContent = t("det.checkNet", { x: info.error });
+    return;
+  }
+  if (!info.found) {
+    status.hidden = false;
+    status.textContent = t("det.notFound");
+    state.notFound.add(it.md5);
+    scheduleRender();
+    return;
+  }
+  $("detTitle").textContent = info.title ? `${info.artist} - ${info.title}` : info.version;
+  $("detSub").textContent = info.title ? `[${info.version}]` : "";
+  const rows = [];
+  if (info.creator) rows.push([t("det.creator"), info.creator]);
+  if (info.status) rows.push([t("det.status"), info.status]);
+  if (info.stars) rows.push([t("det.stars"), `★ ${info.stars}`]);
+  if (info.bpm) rows.push(["BPM", String(info.bpm)]);
+  if (info.length) rows.push([t("det.length"), fmtLen(info.length)]);
+  factRows($("detMap"), rows);
+  // 이전 버전이 저장한 조회 결과에는 출처가 없으므로 그때는 표시하지 않는다
+  $("detSource").hidden = !info.source;
+  $("detSource").textContent = info.source ? t("det.source", { x: info.source }) : "";
+  if (info.set_id) {
+    web.hidden = false;
+    web.onclick = () => api("/api/open_map", { set_id: info.set_id, map_id: info.map_id });
+  }
+  applyMapInfo(it.md5, info);
+}
+
+async function openDetail(it) {
+  const req = ++detailReq;
+  const grade = $("detGrade");
+  const g = gradeEl(it);
+  grade.className = g.className;
+  grade.textContent = it.grade;
+
+  const title = $("detTitle");
+  title.className = it.name ? "" : "nomap";
+  title.textContent = it.name || it.online || t("row.noMap");
+  $("detSub").textContent = it.name ? "" : t("det.notInstalled");
+
+  const installed = !!it.name;
+  $("detMapLabel").hidden = installed;
+  $("detMap").replaceChildren();
+  $("detSource").hidden = true;
+  $("detStatus").hidden = installed;
+  $("detStatus").className = "detail-status";
+  $("detStatus").textContent = t("det.finding");
+  $("detWeb").hidden = true;
+
+  const play = [
+    [t("det.date"), fmtWhen(it.t)],
+    [t("det.score"), fmtN(it.score)],
+    [t("det.acc"), `${(it.acc * 100).toFixed(2)}%`],
+    [t("det.combo"), `${fmtN(it.combo)}x`],
+    [t("det.mode"), MODES[it.mode]],
+  ];
+  if (it.player.trim()) play.push([t("det.player"), it.player]);
+  if (it.mods.length) play.push([t("det.mods"), it.mods.join(" ")]);
+  play.push([t("det.status"), t(it.id > 0 ? "det.stMissing" : "det.stSaved")]);
+  factRows($("detPlay"), play);
+  $("detJudges").replaceChildren(...judgeRows(it).map(([k, v]) => {
+    const d = document.createElement("div");
+    const s = document.createElement("span");
+    s.textContent = k;
+    const b = document.createElement("b");
+    b.textContent = fmtN(v);
+    d.append(s, b);
+    return d;
+  }));
+
+  const rec = $("detRecover");
+  rec.hidden = it.id < 0 || isQueued(it);
+  rec.onclick = () => { $("detail").close(); recover([it.id]); };
+  const del = $("detDelete");
+  del.hidden = isQueued(it);
+  del.onclick = () => { $("detail").close(); requestDelete([it]); };
+  $("detail").showModal();
+
+  if (installed) return;
+  let info;
+  try {
+    info = await api("/api/lookup", { md5: it.md5 });
+  } catch (e) {
+    info = { error: t("det.lookupFail") };
+  }
+  if (req === detailReq && $("detail").open) renderLookup(it, info);
+}
+
+/* ---- 도구 막대 / 하단 막대 ---- */
+function updateChrome() {
+  const total = state.items.length, shown = state.view.length, sel = state.selected.size;
+  const tab = state.tab, job = state.job, busy = !!job;
+  const records = isRecordTab();
+  const selectable = state.view.filter(it => !isQueued(it));
+
+  $("tabCount").textContent = total ? fmtN(total) : "";
+  $("tabAll").textContent = total + state.saved.length ? fmtN(total + state.saved.length) : "";
+  $("rescanBtn").disabled = busy;
+  $("settingsBtn").disabled = busy;
+  const inView = selectable.reduce((n, it) => n + (state.selected.has(it.id) ? 1 : 0), 0);
+
+  // 목록 머리: 목록 전체에 대한 정보와 동작
+  const base = tab === "all" ? total + state.saved.length : total;
+  $("listHead").hidden = !records || !shown;
+  $("listCount").textContent = shown !== base ? t("count.of", { a: base, b: shown }) : t("count.items", { n: base });
+  const allIn = selectable.length > 0 && inView === selectable.length;
+  $("toggleAll").hidden = !selectable.length;
+  $("toggleAll").textContent = t(allIn ? "sel.none" : "sel.all");
+
+  // 하단 알약: 선택했거나 작업 중일 때만
+  // 선택은 작업 중에도 유지한다. 복구와 삭제는 대기열로 들어가므로 막을 이유가 없다.
+  const showSel = records && sel > 0;
+  $("dock").hidden = !busy && !showSel;
+  $("stopJob").hidden = !(job && (job.kind === "backup" || (job.kind === "scan" && job.total))) || showSel;
+  $("clearSel").hidden = !showSel;
+  const selRecoverable = [...state.selected].filter(id => id > 0).length;
+  $("recoverSel").hidden = !showSel || !selRecoverable;
+  $("deleteSel").hidden = !showSel;
+  const text = $("dockText");
+  if (busy && !showSel) {
+    text.textContent = jobText(job);
+  } else if (showSel) {
+    const outside = sel - inView;
+    const b = document.createElement("b");
+    b.textContent = t("sel.count", { n: sel });
+    text.replaceChildren(b, outside > 0 ? t("sel.outside", { n: outside }) : "");
+    $("recoverSel").textContent = t("recover.n", { n: selRecoverable });
+    $("deleteSel").textContent = t("delete.n", { n: sel });
+  }
+
+  // 백업 화면 맨 아래 줄
+  if (tab === "backup") renderBackupFoot(busy);
+
+  $("runningNote").hidden = !(records && state.osu && shown && !Object.keys(state.queueCounts).length);
+  const counts = state.queueCounts;
+  const parts = [];
+  if (counts.delete) parts.push(t("queue.delete", { n: counts.delete }));
+  if (counts.recover) parts.push(t("queue.recover", { n: counts.recover }));
+  if (counts.undo) parts.push(t("queue.undo", { n: counts.undo }));
+  $("queueBar").hidden = !parts.length;
+  $("queueText").textContent = t(state.osu ? "queue.text.running" : "queue.text.soon", { x: parts.join(t("queue.sep")) });
+  $("backupRunning").hidden = !state.osu;
+  const partial = !busy && state.stats && state.stats.partial && records;
+  $("partialNote").hidden = !partial;
+  if (partial) $("partialText").textContent = t("partial", { n: state.stats.read });
+
+  $("loading").hidden = !(records && !shown && (state.loadingSaved || (busy && !sources().length)));
+  const empty = $("empty");
+  const showEmpty = records && !busy && !state.loadingSaved && !shown && state.scanned && !partial;
+  empty.hidden = !showEmpty;
+  $("list").hidden = !shown;
+  if (showEmpty) {
+    const none = !sources().length;
+    const [head, body] = none ? [t("empty.none.title"), t("empty.none.body")]
+      : [t("empty.search.title"), t("empty.search.body")];
+    const s = document.createElement("strong");
+    s.textContent = head;
+    empty.replaceChildren(s, body);
+  }
+}
+
+function jobRemain(job) {
+  const now = Date.now();
+  if (!state.rate || state.rate.total !== job.total) state.rate = { total: job.total, t: now, done: job.done };
+  const elapsed = (now - state.rate.t) / 1000, read = job.done - state.rate.done;
+  if (elapsed <= 3 || read <= 0 || job.done >= job.total) return "";
+  const sec = (job.total - job.done) * elapsed / read;
+  return sec < 60 ? t("job.lessMin") : t("job.mins", { n: Math.round(sec / 60) });
+}
+
+function jobText(job) {
+  if (job.kind === "scan" && job.total) return t("job.checking", { a: job.done, b: job.total }) + jobRemain(job);
+  if (job.kind === "backup" && job.total) {
+    return t("job.copying", { a: fmtBytes(job.done), b: fmtBytes(job.total), c: job.files || 0, d: job.files_total || 0 }) + jobRemain(job);
+  }
+  return job.msg || t(`job.${job.kind}`);
+}
+
+/* ---- 백업 ---- */
+function renderBackup() {
+  const box = $("backupItems");
+  const sizes = state.sizes;
+  box.replaceChildren(...BACKUP.map((item, i) => {
+    const size = sizes[item.key];
+    const empty = size && size.done && !size.files;
+    const selected = state.backup.has(item.key) && !empty;
+    const row = div("row static-row toggle" + (selected ? " selected" : "") + (empty ? " off" : "") + (i === BACKUP.length - 1 ? " last" : ""));
+    row.setAttribute("role", "checkbox");
+    row.setAttribute("aria-checked", selected);
+    row.tabIndex = empty ? -1 : 0;
+    const hit = div("pick-hit");
+    const pick = div("pick");
+    pick.innerHTML = CHECK_SVG;
+    hit.append(pick);
+    const info = div("info");
+    const sub = div("sub", item.rawDesc || t(item.desc));
+    sub.style.whiteSpace = "normal";
+    if (item.note) {
+      const note = document.createElement("span");
+      note.className = "note";
+      note.textContent = t(item.note);
+      sub.append(note);
+    }
+    info.append(div("title", t(item.title)), sub);
+    let label = t("backup.calculating");
+    if (size) label = empty ? t("backup.none") : size.done ? fmtBytes(size.bytes) : `${fmtBytes(size.bytes)}…`;
+    row.append(hit, info, div("size num", label));
+    const toggle = () => {
+      if (empty) return;
+      if (state.backup.has(item.key)) state.backup.delete(item.key); else state.backup.add(item.key);
+      renderBackup();
+      updateChrome();
+    };
+    row.addEventListener("click", toggle);
+    row.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+    return row;
+  }));
+  const dest = state.config && state.config.backup_dir;
+  $("backupDest").textContent = dest || t("backup.pick");
+}
+
+function backupKeys() {
+  return [...state.backup].filter(key => {
+    const s = state.sizes[key];
+    return !(s && s.done && !s.files);  // 비어 있는 항목은 뺀다
+  });
+}
+
+function backupTotal() {
+  let bytes = 0, known = true;
+  for (const key of backupKeys()) {
+    const s = state.sizes[key];
+    if (!s || !s.done) known = false;
+    if (s) bytes += s.bytes;
+  }
+  return { bytes, known };
+}
+
+function renderBackupFoot(busy) {
+  const { bytes, known } = backupTotal();
+  const free = state.config ? state.config.backup_free : null;
+  const short = known && free !== null && bytes > free;
+  const count = backupKeys().length;
+  const parts = [t("backup.count", { n: count })];
+  if (count) parts.push(known ? fmtBytes(bytes) : t("backup.atLeast", { x: fmtBytes(bytes) }));
+  if (free !== null) parts.push(t(short ? "backup.short" : "backup.free", { x: fmtBytes(free) }));
+  $("backupSummary").textContent = parts.join("  ·  ");
+  $("backupFoot").classList.toggle("short", short);
+  $("startBackup").disabled = busy || !count || !(state.config && state.config.backup_dir) || short;
+}
+
+/* ---- 데이터 ---- */
+function addItems(items) {
+  for (const it of items) {
+    it.hay = `${it.name || it.online || ""} ${it.player} ${it.md5}`.toLowerCase();
+    state.items.push(it);
+  }
+}
+
+async function loadSaved() {
+  try {
+    const rows = await api("/api/saved");
+    for (const it of rows) it.hay = `${it.name || it.online || ""} ${it.player} ${it.md5}`.toLowerCase();
+    state.saved = rows;
+  } catch (e) {
+    state.saved = [];
+  }
+  for (const id of [...state.selected]) {
+    if (id < 0) state.selected.delete(id);  // 번호를 새로 매겼으므로 선택을 유지하지 않는다
+  }
+  state.loadingSaved = false;
+  if (isRecordTab()) {
+    fillPlayers();
+    applyFilters(true);
+  }
+}
+
+async function loadCandidates() {
+  const data = await api("/api/candidates");
+  state.stats = data.stats;
+  state.scanned = !!data.stats;
+  state.items = [];
+  addItems(data.items);
+  const ids = new Set(state.items.map(it => it.id));
+  // 저장된 기록의 번호는 다시 읽을 때마다 새로 매겨지므로 선택을 유지하지 않는다
+  state.selected = new Set([...state.selected].filter(id => ids.has(id)));
+  fillPlayers();
+  applyFilters();
+  if (data.stats && !data.stats.names_ok) toast(t("toast.noNames"));
+}
+
+async function loadHistory() {
+  state.history = await api("/api/history");
+  $("tabHistory").textContent = state.history.length ? fmtN(state.history.length) : "";
+  const box = $("historyList");
+  const n = state.history.length;
+  box.hidden = !n;
+  $("historyEmpty").hidden = n > 0;
+  box.replaceChildren(...state.history.map((h, i) => {
+    const row = div("row static-row" + (i === n - 1 ? " last" : ""));
+    const isDelete = h.kind === "delete";
+    const info = div("info");
+    info.append(div("title", t(isDelete ? "history.deleted" : "history.recovered", { n: h.count })), div("sub", `${fmtWhen(h.time)}  ·  ${h.osu_dir}`));
+    row.append(info);
+    const waiting = state.queueOps.some(op => op.history === h.id);
+    if (h.undone) {
+      row.append(div("sub", t("history.undone")));
+    } else if (waiting) {
+      row.append(div("sub", t("history.waiting")));
+    } else {
+      const btn = document.createElement("button");
+      btn.className = "button";
+      btn.textContent = t("action.undo");
+      btn.addEventListener("click", () => undo(h));
+      row.append(btn);
+    }
+    return row;
+  }));
+}
+
+async function loadQueue() {
+  state.queueOps = await api("/api/queue");
+  const map = new Map();
+  for (const op of state.queueOps) {
+    for (const k of op.keys) map.set(k, op.kind);
+  }
+  state.queued = map;
+  for (const id of [...state.selected]) {
+    const it = findItem(id);
+    if (it && isQueued(it)) state.selected.delete(id);
+  }
+  updateChrome();
+  scheduleRender();
+  if (state.tab === "history") loadHistory();
+}
+
+function findItem(id) {
+  return (id > 0 ? state.items : state.saved).find(it => it.id === id);
+}
+
+async function changeLang(value) {
+  const cfg = await api("/api/config", { lang: value });
+  LANG = cfg.lang_effective;
+  applyStatic();
+  applyConfig(cfg);
+  fillPlayers();
+  if (isRecordTab()) applyFilters(true);
+  if (state.tab === "backup") renderBackup();
+  loadHistory();
+  updateChrome();
+}
+
+function runOnboarding(cfg) {
+  return new Promise(resolve => {
+    buildAlertTriangles($("onTris"));
+    const found = $("onFound");
+    found.replaceChildren(...cfg.osu_found.map(d => new Option(d, d)));
+    found.hidden = cfg.osu_found.length < 2;
+    const setOsu = async value => applyConfig(await api("/api/config", { osu_dir: value }));
+    found.onchange = () => setOsu(found.value);
+    $("onOsu").onchange = e => setOsu(e.target.value);
+    $("onLang").onchange = e => changeLang(e.target.value);
+    $("onPick").onclick = async () => applyConfig((await api("/api/pick", { target: "osu" })).config);
+    $("onboard").addEventListener("cancel", e => e.preventDefault());  // 폴더를 정해야 시작할 수 있다
+    $("onStart").onclick = async () => {
+      const done = await api("/api/config", { onboarded: true });
+      applyConfig(done);
+      $("onboard").close();
+      resolve(done);
+    };
+    applyConfig(cfg);
+    $("onboard").showModal();
+  });
+}
+
+function applyConfig(cfg) {
+  state.config = cfg;
+  if (document.activeElement !== $("onOsu")) $("onOsu").value = cfg.osu_dir;
+  $("onLang").value = cfg.lang;
+  $("onStart").disabled = !cfg.valid;
+  $("onHint").classList.toggle("error", !cfg.valid);
+  $("onHint").textContent = t(cfg.valid ? "set.osuHint" : cfg.lazer ? "srv.lazer" : "set.osuError");
+  if (document.activeElement !== $("osuDir")) $("osuDir").value = cfg.osu_dir;
+  if (document.activeElement !== $("replayDir")) $("replayDir").value = cfg.replay_dir;
+  $("replayDir").placeholder = cfg.replay_default || "Data\\r";
+  if (document.activeElement !== $("trashDir")) $("trashDir").value = cfg.trash_dir;
+  $("trashDir").placeholder = cfg.trash_default || "Data\\r\\_deleted";
+  const trashHint = $("trashHint");
+  trashHint.classList.toggle("error", !!cfg.trash_error);
+  trashHint.textContent = t(cfg.trash_error ? "set.trashError" : "set.trashHint");
+  const hint = $("osuHint");
+  hint.classList.toggle("error", !cfg.valid);
+  hint.textContent = t(cfg.valid ? "set.osuHint" : "set.osuError");
+  $("backupDest").textContent = cfg.backup_dir || t("backup.pick");
+  $("langSel").value = cfg.lang;
+  $("dragSelect").checked = cfg.drag_select;
+  if (state.tab === "backup") updateChrome();
+}
+
+async function startScan() {
+  const res = await api("/api/scan", {});
+  if (!res.started) toast(t("toast.busy"));
+}
+
+async function saveFolders() {
+  applyConfig(await api("/api/config", { osu_dir: $("osuDir").value, replay_dir: $("replayDir").value, trash_dir: $("trashDir").value }));
+}
+
+function openSettings() {
+  state.settingsBase = `${state.config.osu_dir}|${state.config.replay_dir}`;
+  $("settings").showModal();
+}
+
+async function onSettingsClosed() {
+  await saveFolders();
+  if (`${state.config.osu_dir}|${state.config.replay_dir}` !== state.settingsBase) {
+    await Promise.all([loadCandidates(), loadSaved()]);
+    state.sizes = {};
+    if (state.config.valid) startScan();
+  }
+}
+
+/* ---- 진행 / 상태 스트림 ---- */
+function renderJob() {
+  const job = state.job;
+  const bar = $("topProgress");
+  bar.hidden = !job;
+  if (job) {
+    bar.classList.toggle("indet", !job.total);
+    bar.firstElementChild.style.width = job.total ? `${(job.done / job.total) * 100}%` : "";
+  } else {
+    state.rate = null;
+  }
+  updateChrome();
+}
+
+/* 검색 중에는 찾은 기록을 이어 받아 목록에 바로 더한다. */
+let pullBusy = false, lastPull = 0;
+async function pullFound() {
+  if (pullBusy || Date.now() - lastPull < 700) return;
+  pullBusy = true;
+  lastPull = Date.now();
+  try {
+    const since = state.items.reduce((m, it) => Math.max(m, it.id), 0);
+    const data = await api(`/api/candidates?since=${since}`);
+    if (data.items.length && state.job && state.job.kind === "scan") {
+      addItems(data.items);
+      fillPlayers();
+      applyFilters(true);
+    }
+  } finally {
+    pullBusy = false;
+  }
+}
+
+async function onFinished(last) {
+  if (last.kind === "backup") {
+    if (last.ok) toast(last.msg, { action: t("openFolder"), onAction: () => api("/api/backup/open", {}) });
+    else toast(last.msg, { error: true });
+    return;
+  }
+  const prevTop = state.history[0] && state.history[0].id;
+  await Promise.all([loadCandidates(), loadHistory(), loadSaved()]);
+  if (isRecordTab()) applyFilters(true);
+  if (!last.ok) {
+    toast(last.msg, { error: true });
+    if (last.kind === "scan") {
+      state.scanned = false;
+      openSettings();
+    }
+  } else if (last.kind === "queue") {
+    const top = state.history[0];
+    const isNew = top && top.id !== prevTop && !last.rescan;
+    toast(last.msg, isNew ? { action: t("action.undo"), onAction: () => undo(top) } : {});
+    if (last.rescan) startScan();  // 되돌린 기록이 다시 후보가 될 수 있어 목록을 새로 만든다
+  }
+  scheduleRender();
+}
+
+function connect() {
+  const es = new EventSource(`/api/events?t=${encodeURIComponent(TOKEN)}`);
+  es.onmessage = e => {
+    const s = JSON.parse(e.data);
+    const wasJob = !!state.job;
+    state.job = s.job;
+    if (s.osu !== state.osu) {
+      // osu!는 종료할 때 기록과 맵 정보를 파일에 쓰므로 그때 목록을 다시 읽는다
+      if (state.osu === true) state.rescanAfterOsu = true;
+      state.osu = s.osu;
+      $("osuStatus").hidden = !s.osu;
+    }
+    state.queueCounts = s.queue || {};
+    if (s.queue_rev !== state.queueRev) {
+      state.queueRev = s.queue_rev;
+      loadQueue();
+    }
+    const sizes = JSON.stringify(s.sizes);
+    if (sizes !== state.sizesText) {
+      state.sizesText = sizes;
+      state.sizes = s.sizes || {};
+      if (state.tab === "backup") renderBackup();
+    }
+    if (!wasJob && s.job && s.job.kind === "scan") {
+      state.items = [];
+      state.selected.clear();
+      fillPlayers();
+      applyFilters();
+    }
+    renderJob();
+    if (s.job && s.job.kind === "scan") pullFound();
+    if (s.last && s.last.seq > state.lastSeq) {
+      const first = state.lastSeq === 0 && !wasJob && !state.expecting;
+      state.lastSeq = s.last.seq;
+      if (!first) onFinished(s.last);
+    }
+    if (wasJob !== !!s.job && state.tab === "history") loadHistory();
+    // 검색은 선택을 비우므로, 사용자가 선택 중이거나 확인 창을 보는 동안에는 미룬다
+    if (state.rescanAfterOsu && !s.osu && !s.job && state.config.valid && !state.selected.size && !document.querySelector("dialog[open]")) {
+      state.rescanAfterOsu = false;
+      startScan();
+    }
+  };
+}
+
+/* ---- 확인 창: 규모가 크거나 osu!를 꺼야 할 때만 묻는다 ---- */
+const ALERT_LIST_MAX = 200;  // 수천 개를 한 번에 그리면 창이 느려지므로 앞부분만 그린다
+
+function targetRows(items) {
+  const rows = items.slice(0, ALERT_LIST_MAX).map(it => {
+    const row = div("target-row" + (it.name ? "" : " nomap"));
+    const info = div("info");
+    const name = it.name || it.online || t("row.noMap");
+    const title = div("title", name);
+    title.title = name;
+    info.append(title, div("sub", fmtWhen(it.t)));
+    const stats = div("stats num");
+    const score = document.createElement("b");
+    score.textContent = fmtN(it.score);
+    const acc = document.createElement("span");
+    acc.textContent = `${(it.acc * 100).toFixed(2)}%`;
+    stats.append(score, acc);
+    row.append(gradeEl(it), info, stats);
+    return row;
+  });
+  if (items.length > ALERT_LIST_MAX) rows.push(div("target-more num", t("dlg.more", { n: items.length - ALERT_LIST_MAX })));
+  return rows;
+}
+
+function buildAlertTriangles(box = $("dlgTris")) {
+  if (box.children.length) return;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  for (let i = 0; i < 9; i++) {
+    const size = rand(26, 106), dur = rand(14, 34);
+    const el = document.createElement("i");
+    el.style.cssText = `left:${rand(-4, 96).toFixed(1)}%;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;` +
+      `opacity:${rand(.07, .18).toFixed(3)};animation-duration:${dur.toFixed(1)}s;animation-delay:${(-rand(0, dur)).toFixed(1)}s;` +
+      `--drift:${rand(-22, 22).toFixed(1)}px;--spin:${rand(-18, 18).toFixed(1)}deg`;
+    box.append(el);
+  }
+}
+
+function openDialog({ tone, title, items, facts, notes, okText, danger, skip, onOk }) {
+  $("dialog").className = "alert" + (tone ? " " + tone : "");
+  buildAlertTriangles();
+  $("dlgTitle").textContent = title;
+  $("dlgTarget").hidden = !items;
+  $("dlgTarget").replaceChildren(...(items ? targetRows(items) : []));
+  $("dlgTarget").scrollTop = 0;
+  factRows($("dlgFacts"), facts);
+  $("dlgFacts").hidden = !facts.length;
+  $("dlgNotes").replaceChildren(...notes.map(([text, cls]) => div(cls || "", text)));
+  $("dlgNotes").hidden = !notes.length;
+  $("dlgSkipRow").hidden = !skip;
+  $("dlgSkip").checked = false;
+  const ok = $("dlgOk");
+  ok.textContent = okText;
+  ok.className = "button " + (danger ? "fill-danger" : "primary");
+  ok.onclick = () => {
+    if (skip && $("dlgSkip").checked) skip();
+    $("dialog").close();
+    onOk();
+  };
+  $("dialog").showModal();
+}
+
+async function send(path, body) {
+  const res = await api(path, body);
+  if (res.error) toast(res.error, { error: true });
+  return res;
+}
+
+function recover(ids) {
+  const run = async () => {
+    for (const id of ids) state.selected.delete(id);
+    state.expecting = true;
+    updateChrome();
+    scheduleRender();
+    await send("/api/recover", { ids });
+  };
+  if (ids.length <= CONFIRM_OVER) return run();
+
+  const chosen = new Set(ids);
+  const items = state.items.filter(it => chosen.has(it.id));
+  const players = new Map();
+  let noMap = 0, min = Infinity, max = 0;
+  for (const it of items) {
+    const p = it.player.trim() || t("f.noName");
+    players.set(p, (players.get(p) || 0) + 1);
+    if (!it.name) noMap++;
+    if (it.t < min) min = it.t;
+    if (it.t > max) max = it.t;
+  }
+  const top = [...players].sort((a, b) => b[1] - a[1]);
+  const names = top.slice(0, 3).map(([p, n]) => `${p} ${fmtN(n)}`).join(", ") +
+    (top.length > 3 ? t("dlg.others", { n: top.length - 3 }) : "");
+  const facts = [
+    [t("dlg.period"), `${fmtDay(new Date(min))} – ${fmtDay(new Date(max))}`],
+    [t("dlg.player"), names],
+  ];
+  if (noMap) facts.push([t("dlg.noMap"), t("count.items", { n: noMap })]);
+  const notes = [[t("dlg.canUndo")]];
+  if (state.osu) notes.unshift([t("dlg.osuRecover"), "warn"]);
+  openDialog({ title: t("dlg.recoverMany", { n: items.length }), items, facts, notes, okText: t("recover.n", { n: items.length }), onOk: run });
+}
+
+function requestDelete(items) {
+  const run = async () => {
+    for (const it of items) state.selected.delete(it.id);
+    state.expecting = true;
+    updateChrome();
+    scheduleRender();
+    await send("/api/delete", { keys: items.map(it => [it.md5, it.ts]) });
+  };
+  if (state.skipDeleteWarn) return run();
+  const notes = [[t("dlg.canRestore")]];
+  if (state.osu) notes.unshift([t("dlg.osuDelete"), "warn"]);
+  openDialog({
+    tone: "delete",
+    title: items.length === 1 ? t("dlg.deleteOne") : t("dlg.deleteMany", { n: items.length }),
+    items, facts: [], notes, okText: items.length === 1 ? t("delete") : t("delete.n", { n: items.length }), danger: true,
+    skip: () => { state.skipDeleteWarn = true; },
+    onOk: run,
+  });
+}
+
+function undo(h) {
+  state.expecting = true;
+  send("/api/undo", { id: h.id });
+}
+
+/* ---- 이벤트 연결 ---- */
+function bind() {
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+  const rescan = () => { state.expecting = true; if (!isRecordTab()) setTab("all"); startScan(); };
+  $("rescanBtn").addEventListener("click", rescan);
+  $("resumeBtn").addEventListener("click", rescan);
+  $("settingsBtn").addEventListener("click", openSettings);
+  $("list").addEventListener("click", onListClick);
+  $("list").addEventListener("keydown", onListKey);
+  $("list").addEventListener("pointerdown", onDragStart);
+  $("list").addEventListener("pointermove", onDragMove);
+  $("list").addEventListener("pointerup", onDragEnd);
+  $("list").addEventListener("pointercancel", onDragEnd);
+  document.addEventListener("keydown", onGlobalKey);
+  addEventListener("scroll", () => {
+    $("toolbar").classList.toggle("scrolled", scrollY > 2);
+    scheduleRender();
+  }, { passive: true });
+  addEventListener("resize", scheduleRender);
+
+  let timer;
+  const later = () => { clearTimeout(timer); timer = setTimeout(() => { scrollTo(0, 0); applyFilters(); }, 70); };
+  for (const id of ["search", "fScoreMin", "fScoreMax"]) $(id).addEventListener("input", later);
+  for (const id of ["fSort", "fMode", "fPlayer", "fFrom", "fTo"]) {
+    $(id).addEventListener("change", () => { scrollTo(0, 0); applyFilters(); });
+  }
+  initCalendar();
+  $("fReset").addEventListener("click", resetFilters);
+  $("filterBtn").addEventListener("click", () => {
+    const open = $("filterPop").hidden;
+    $("filterPop").hidden = !open;
+    $("filterBtn").setAttribute("aria-expanded", open);
+  });
+  document.addEventListener("pointerdown", e => {
+    if (!$("filterPop").hidden && !e.target.closest("#filterPop, #filterBtn")) {
+      closeFilter();
+      state.swallowClick = !!e.target.closest("#list");  // 바깥을 누른 건 닫기일 뿐, 줄을 연 것이 아니다
+    }
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !$("filterPop").hidden) { closeFilter(); $("filterBtn").focus(); }
+  });
+
+  $("queueCancel").addEventListener("click", () => api("/api/queue/remove", {}));
+  $("author").addEventListener("click", e => {
+    e.preventDefault();
+    api("/api/open_author", {});
+  });
+  $("toggleAll").addEventListener("click", () => {
+    const rows = state.view.filter(it => !isQueued(it));
+    const all = rows.every(it => state.selected.has(it.id));
+    for (const it of rows) {
+      if (all) state.selected.delete(it.id); else state.selected.add(it.id);
+    }
+    updateChrome();
+    scheduleRender();
+  });
+  $("clearSel").addEventListener("click", () => {
+    state.selected.clear();
+    updateChrome();
+    scheduleRender();
+  });
+  $("recoverSel").addEventListener("click", () => recover([...state.selected].filter(id => id > 0)));
+  $("deleteSel").addEventListener("click", () => requestDelete([...state.selected].map(findItem).filter(Boolean)));
+  $("stopJob").addEventListener("click", () => api("/api/stop", {}));
+  $("dlgCancel").addEventListener("click", () => $("dialog").close());
+  $("detClose").addEventListener("click", () => $("detail").close());
+
+  const pick = target => async () => {
+    const res = await api("/api/pick", { target });
+    applyConfig(res.config);
+    if (target === "backup") renderBackup();
+  };
+  $("pickOsu").addEventListener("click", pick("osu"));
+  $("pickReplay").addEventListener("click", pick("replay"));
+  $("pickBackup").addEventListener("click", pick("backup"));
+  $("pickTrash").addEventListener("click", pick("trash"));
+  $("osuDir").addEventListener("change", saveFolders);
+  $("replayDir").addEventListener("change", saveFolders);
+  $("trashDir").addEventListener("change", saveFolders);
+  $("dragSelect").addEventListener("change", async e => applyConfig(await api("/api/config", { drag_select: e.target.checked })));
+  $("langSel").addEventListener("change", e => changeLang(e.target.value));
+  $("setDone").addEventListener("click", () => $("settings").close());
+  $("settings").addEventListener("close", onSettingsClosed);
+  $("startBackup").addEventListener("click", async () => {
+    state.expecting = true;
+    const res = await api("/api/backup", { keys: backupKeys() });  // 백업은 바로 시작한다
+    if (!res.started) toast(t("toast.busy"));
+  });
+}
+
+(async function init() {
+  STRINGS = await fetch("/i18n.json").then(r => r.json());
+  let cfg = await api("/api/config");
+  LANG = cfg.lang_effective;
+  applyStatic();
+  buildTriangles();
+  buildFilterUI();
+  bind();
+  setTab("all");
+  connect();
+  applyConfig(cfg);
+  if (!cfg.onboarded) cfg = await runOnboarding(cfg);
+  // 전체 기록을 읽는 동안 화면을 막지 않는다. HDD에서는 맵 정보를 읽는 데 시간이 걸린다.
+  state.loadingSaved = cfg.valid;
+  updateChrome();
+  if (cfg.valid) loadSaved();
+  await Promise.all([loadHistory(), loadCandidates()]);
+  if (!cfg.valid) {
+    openSettings();
+  } else if (!state.scanned) {
+    state.expecting = true;
+    startScan();
+  }
+})();
+</script>
+</body>
+</html>
