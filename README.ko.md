@@ -63,6 +63,10 @@ pip install pyinstaller pywebview
 pyinstaller --onefile --noconsole --name REosu --icon icon.ico --add-data "web;web" osu_score_recovery.py
 ```
 
+## 라이선스
+
+[MIT](LICENSE). `web/fonts`의 폰트는 각자의 라이선스를 따릅니다.
+
 ## 크레딧
 
 - 화면 스타일은 [osumania_map_analyser](https://github.com/LeoBlackMT/osumania_map_analyser)(MIT)를 참고했습니다.
