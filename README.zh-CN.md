@@ -12,6 +12,14 @@
 
 此 exe 没有代码签名，Windows SmartScreen 可能会发出警告。请点击**更多信息**，然后点击**仍要运行**。你可以用发布页面上的 SHA-256 值核对文件。
 
+## 截图
+
+![可恢复记录列表](docs/screenshots/recoverable.png)
+
+![删除确认窗口](docs/screenshots/delete.png)
+
+![备份](docs/screenshots/backup.png)
+
 ## 功能
 
 - **恢复：** 列出 `Data\r` 中存在但 `scores.db` 中缺失的回放，并恢复你选择的记录。

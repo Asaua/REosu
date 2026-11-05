@@ -12,6 +12,14 @@ ppy와는 관계없는 비공식 도구입니다.
 
 코드 서명이 없는 exe라서 Windows SmartScreen이 경고할 수 있습니다. **추가 정보**를 누른 뒤 **실행**을 고르세요. 릴리스 페이지의 SHA-256 값으로 파일을 대조할 수 있습니다.
 
+## 스크린샷
+
+![복구 후보 목록](docs/screenshots/recoverable.png)
+
+![삭제 확인 창](docs/screenshots/delete.png)
+
+![백업](docs/screenshots/backup.png)
+
 ## 기능
 
 - **복구:** `Data\r`에는 있지만 `scores.db`에 없는 리플레이를 나열하고, 선택한 기록을 되살립니다.

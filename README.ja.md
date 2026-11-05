@@ -12,6 +12,14 @@ ppy とは関係のない非公式ツールです。
 
 この exe にはコード署名がないため、Windows SmartScreen の警告が出ることがあります。**詳細情報**を押してから**実行**を選んでください。リリースページの SHA-256 値でファイルを照合できます。
 
+## スクリーンショット
+
+![復元候補の一覧](docs/screenshots/recoverable.png)
+
+![削除の確認画面](docs/screenshots/delete.png)
+
+![バックアップ](docs/screenshots/backup.png)
+
 ## 機能
 
 - **復元：** `Data\r` にあって `scores.db` にないリプレイを一覧にし、選んだ記録を復元します。

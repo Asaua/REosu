@@ -12,6 +12,14 @@ Get `REosu.exe` from the [latest release](https://github.com/Asaua/REosu/release
 
 The exe isn't code-signed, so Windows SmartScreen may warn you. Choose **More info**, then **Run anyway**. You can compare the file with the SHA-256 hash on the release page.
 
+## Screenshots
+
+![Recoverable records](docs/screenshots/recoverable.png)
+
+![Delete confirmation](docs/screenshots/delete.png)
+
+![Backup](docs/screenshots/backup.png)
+
 ## Features
 
 - **Recover:** lists replays in `Data\r` that are missing from `scores.db`, and restores the ones you select.
