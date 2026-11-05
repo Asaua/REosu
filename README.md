@@ -1,5 +1,7 @@
 # REosu!
 
+**English** | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
+
 A local record manager for **osu!stable** on Windows. It finds records that disappeared from the local leaderboard and brings them back from the replay files. You can also browse and delete records and back up your osu! folders.
 
 Not affiliated with or endorsed by ppy.
