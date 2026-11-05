@@ -54,5 +54,3 @@ pyinstaller --onefile --noconsole --name REosu --icon icon.ico --add-data "web;w
 
 - Visual style inspired by [osumania_map_analyser](https://github.com/LeoBlackMT/osumania_map_analyser) (MIT).
 - Fonts: [Outfit](https://github.com/Outfitio/Outfit-Fonts) and [Space Grotesk](https://github.com/floriankarsten/space-grotesk), under the SIL Open Font License. See `web/fonts`.
-
-Made by [Laptop User](https://osu.ppy.sh/users/22386458).
