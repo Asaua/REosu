@@ -28,7 +28,7 @@ The exe is self-signed by Asaua, not by a certificate authority Windows trusts, 
 - **Recover:** lists replays in `Data\r` that are missing from `scores.db`, and restores the ones you select. The map must be installed.
 - **All records:** browse, filter, and delete local records.
 - **History:** undo any recovery or deletion. Deleted replays are kept in `Data\r\_deleted` by default.
-- **Backup:** copy replays, collections, songs, skins, screenshots, and settings to a dated folder.
+- **Backup:** copy replays, collections, songs, skins, screenshots, and settings to a dated folder or zip file.
 - **Languages:** Korean, English, Simplified Chinese, and Japanese.
 
 ## What it changes

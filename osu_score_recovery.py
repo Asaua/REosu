@@ -26,6 +26,7 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from ctypes import wintypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -39,6 +40,9 @@ MAX_BODY = 4 * 1024 * 1024
 READ_THREADS = 24
 READ_BATCH = 96
 BACKUP_KEYS = ("scores", "collection", "songs", "skins", "screenshots", "cfg")
+# 이미 압축된 형식은 다시 압축해도 거의 줄지 않아 시간만 든다
+ZIP_STORED_EXT = frozenset((".mp3", ".ogg", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".m4v", ".avi",
+                            ".flv", ".mkv", ".wmv", ".mpg", ".mpeg", ".osz", ".osk", ".osr", ".zip", ".7z", ".rar", ".gz"))
 FONT_FILES = {"Outfit-Latin.woff2", "SpaceGrotesk-Latin.woff2"}
 MD5_RE = re.compile(r"[0-9a-f]{32}")
 LOOKUP_TIMEOUT = 8
@@ -772,6 +776,7 @@ class App:
         self.trash_dir = cfg.get("trash_dir") or ""
         self.trash_error = False
         self.backup_dir = cfg.get("backup_dir") or ""
+        self.backup_zip = bool(cfg.get("backup_zip", False))
         self.last_backup = None
         self.sizes = {}
         self.size_gen = 0
@@ -808,7 +813,7 @@ class App:
         tmp = self.cfg_path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"osu_dir": self.osu_dir, "replay_dir": self.replay_dir, "trash_dir": self.trash_dir,
-                       "backup_dir": self.backup_dir, "lang": self.lang_setting,
+                       "backup_dir": self.backup_dir, "backup_zip": self.backup_zip, "lang": self.lang_setting,
                        "drag_select": self.drag_select, "onboarded": self.onboarded}, f, ensure_ascii=False, indent=2)
         os.replace(tmp, self.cfg_path)
 
@@ -837,7 +842,7 @@ class App:
             "drag_select": self.drag_select, "onboarded": self.onboarded,
             "lazer": os.path.isfile(os.path.join(self.osu_dir, "client.realm")) if self.osu_dir else False,
             "osu_found": detect_osu_dirs() if not self.onboarded else [],
-            "backup_dir": self.backup_dir, "backup_free": free,
+            "backup_dir": self.backup_dir, "backup_free": free, "backup_zip": self.backup_zip,
         }
 
     def set_config(self, body):
@@ -856,6 +861,8 @@ class App:
                 self.cands, self.stats = {}, None
         if "onboarded" in body:
             self.onboarded = bool(body["onboarded"])
+        if "backup_zip" in body:
+            self.backup_zip = bool(body["backup_zip"])
         if "drag_select" in body:
             self.drag_select = bool(body["drag_select"])
         if "lang" in body:
@@ -1152,6 +1159,9 @@ class App:
             raise RecoveryError(tr("srv.noSpace", a=format_bytes(total), b=format_bytes(free)))
 
         target = os.path.join(dest, "osu_backup_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+        as_zip = self.backup_zip
+        if as_zip:
+            return self.backup_to_zip(target + ".zip", osu_dir, keys, files, total)
         os.makedirs(target)
         self.last_backup = target
         self.set_progress(msg="", total=total, done=0, files=0, files_total=len(files))
@@ -1187,12 +1197,70 @@ class App:
             msg += tr("srv.backupErrors", n=len(errors))
         return msg
 
+    def backup_to_zip(self, target, osu_dir, keys, files, total):
+        """폴더를 거치지 않고 zip 하나로 바로 저장한다. 끝날 때까지는 .part로 둔다."""
+        part = long_path(target + ".part")
+        self.set_progress(msg="", total=total, done=0, files=0, files_total=len(files), zip=True)
+        copied, done, errors, tick = 0, 0, [], time.time()
+        # 1980년 이전 날짜의 파일도 저장할 수 있게 strict_timestamps를 끈다
+        zf = zipfile.ZipFile(part, "w", zipfile.ZIP_DEFLATED, strict_timestamps=False)
+        try:
+            for path, rel, size in files:
+                if self.cancel:
+                    break
+                arc = rel.replace(os.sep, "/").lstrip("/")
+                stored = os.path.splitext(rel)[1].lower() in ZIP_STORED_EXT
+                try:
+                    zf.write(path, arc, zipfile.ZIP_STORED if stored else zipfile.ZIP_DEFLATED)
+                    if zf.getinfo(arc).file_size != size and os.path.getsize(path) == size:
+                        errors.append(f"{rel}\t{tr('srv.sizeDiff')}")
+                    else:
+                        copied += 1
+                except OSError as e:
+                    if getattr(e, "winerror", None) in (39, 112) or e.errno == 28:  # 디스크 가득 참
+                        raise RecoveryError(tr("srv.diskFull"))
+                    errors.append(f"{rel}\t{e.strerror or e}")
+                done += size
+                if time.time() - tick > 0.2:
+                    self.set_progress(done=done, files=copied)
+                    tick = time.time()
+            finished = not self.cancel
+            zf.writestr("backup_info.json", self.backup_info_text(osu_dir, keys, copied, done, errors, finished))
+            if errors:
+                zf.writestr("backup_errors.txt", "\n".join(errors))
+            zf.close()
+        except BaseException:
+            # 쓰다 만 zip은 열 수 없으므로 남기지 않는다
+            try:
+                zf.close()
+            except (OSError, ValueError):
+                pass
+            try:
+                os.remove(part)
+            except OSError:
+                pass
+            raise
+        if not finished:
+            target = target[:-4] + "_incomplete.zip"
+        os.replace(part, long_path(target))
+        self.last_backup = target
+        if not finished:
+            return tr("srv.backupStopped", n=copied)
+        msg = tr("srv.backupDone", n=copied, x=format_bytes(done))
+        if errors:
+            msg += tr("srv.backupErrors", n=len(errors))
+        return msg
+
+    @staticmethod
+    def backup_info_text(osu_dir, keys, copied, size, errors, complete):
+        return json.dumps({"time": datetime.datetime.now().isoformat(timespec="seconds"), "osu_dir": osu_dir,
+                           "items": keys, "files": copied, "bytes": size, "errors": len(errors), "complete": complete},
+                          ensure_ascii=False, indent=2)
+
     @staticmethod
     def write_backup_info(target, osu_dir, keys, copied, size, errors, complete):
         with open(os.path.join(target, "backup_info.json"), "w", encoding="utf-8") as f:
-            json.dump({"time": datetime.datetime.now().isoformat(timespec="seconds"), "osu_dir": osu_dir,
-                       "items": keys, "files": copied, "bytes": size, "errors": len(errors), "complete": complete},
-                      f, ensure_ascii=False, indent=2)
+            f.write(App.backup_info_text(osu_dir, keys, copied, size, errors, complete))
         if errors:
             with open(os.path.join(target, "backup_errors.txt"), "w", encoding="utf-8") as f:
                 f.write("\n".join(errors))
@@ -1713,6 +1781,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/backup/open":
             if app.last_backup and os.path.isdir(app.last_backup):
                 os.startfile(app.last_backup)
+            elif app.last_backup and os.path.isfile(app.last_backup):
+                os.startfile(os.path.dirname(app.last_backup))  # zip이면 들어 있는 폴더를 연다
             return self.send_json({"ok": True})
         try:
             if path == "/api/recover":

@@ -812,6 +812,14 @@ dialog.alert.delete .skip-row { color: #c9aeb2; }
       <button class="button" id="pickBackup" data-i18n="browse">찾아보기</button>
     </div>
   </div>
+  <div class="setting-check">
+    <label class="skip-row">
+      <input type="checkbox" id="backupZip">
+      <span class="skip-box"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2.5 6.2 2.4 2.4 4.6-5"/></svg></span>
+      <span data-i18n="backup.zip">zip 파일 하나로 압축</span>
+    </label>
+    <div class="hint" data-i18n="backup.zipHint">폴더 대신 zip 파일로 저장합니다. 곡과 리플레이는 이미 압축된 형식이 많아 크기는 크게 줄지 않습니다.</div>
+  </div>
   <div class="notice" id="backupRunning" style="padding-top:12px" data-i18n="backup.running" hidden>osu!가 켜져 있으면 이번 세션 기록은 scores.db에 아직 없습니다. 끄고 백업하는 편이 안전합니다.</div>
   <div class="backup-foot" id="backupFoot">
     <span class="num" id="backupSummary"></span>
@@ -1098,7 +1106,7 @@ function setTab(tab) {
 /* 맵이 설치되지 않은 기록은 복구해도 게임에 보이지 않으므로 복구 대상이 아니다.
    osu!.db를 읽지 못했으면 설치 여부를 모르니 막지 않는다. */
 const canRecover = it => it.id > 0 && (!!it.name || !!(state.stats && !state.stats.names_ok));
-const sources = () => state.tab === "all" ? state.items.concat(state.saved) : state.items.filter(canRecover);
+const sources = () => state.tab === "all" ? state.items.concat(state.saved) : state.items;
 const digits = el => { const v = el.value.replace(/[^0-9]/g, ""); if (v !== el.value) el.value = v; return v === "" ? null : +v; };
 
 function applyFilters(keepAnchor) {
@@ -1731,15 +1739,14 @@ function updateChrome() {
   const records = isRecordTab();
   const selectable = state.view.filter(it => !isQueued(it));
 
-  const recoverable = state.items.filter(canRecover);
-  $("tabCount").textContent = recoverable.length ? fmtN(recoverable.length) : "";
+  $("tabCount").textContent = total ? fmtN(total) : "";
   $("tabAll").textContent = total + state.saved.length ? fmtN(total + state.saved.length) : "";
   $("rescanBtn").disabled = busy;
   $("settingsBtn").disabled = busy;
   const inView = selectable.reduce((n, it) => n + (state.selected.has(it.id) ? 1 : 0), 0);
 
   // 목록 머리: 목록 전체에 대한 정보와 동작
-  const base = tab === "all" ? total + state.saved.length : recoverable.length;
+  const base = tab === "all" ? total + state.saved.length : total;
   $("listHead").hidden = !records || !shown;
   $("listCount").textContent = shown !== base ? t("count.of", { a: base, b: shown }) : t("count.items", { n: base });
   const allIn = selectable.length > 0 && inView === selectable.length;
@@ -1752,7 +1759,7 @@ function updateChrome() {
   $("dock").hidden = !busy && !showSel;
   $("stopJob").hidden = !(job && (job.kind === "backup" || (job.kind === "scan" && job.total))) || showSel;
   $("clearSel").hidden = !showSel;
-  const selRecoverable = recoverable.reduce((n, it) => n + (state.selected.has(it.id) ? 1 : 0), 0);
+  const selRecoverable = state.items.reduce((n, it) => n + (state.selected.has(it.id) && canRecover(it) ? 1 : 0), 0);
   $("recoverSel").hidden = !showSel || !selRecoverable;
   $("deleteSel").hidden = !showSel;
   const text = $("dockText");
@@ -1810,7 +1817,7 @@ function jobRemain(job) {
 function jobText(job) {
   if (job.kind === "scan" && job.total) return t("job.checking", { a: job.done, b: job.total }) + jobRemain(job);
   if (job.kind === "backup" && job.total) {
-    return t("job.copying", { a: fmtBytes(job.done), b: fmtBytes(job.total), c: job.files || 0, d: job.files_total || 0 }) + jobRemain(job);
+    return t(job.zip ? "job.zipping" : "job.copying", { a: fmtBytes(job.done), b: fmtBytes(job.total), c: job.files || 0, d: job.files_total || 0 }) + jobRemain(job);
   }
   return job.msg || t(`job.${job.kind}`);
 }
@@ -2033,6 +2040,7 @@ function applyConfig(cfg) {
   $("backupDest").textContent = cfg.backup_dir || t("backup.pick");
   $("langSel").value = cfg.lang;
   $("dragSelect").checked = cfg.drag_select;
+  $("backupZip").checked = cfg.backup_zip;
   if (state.tab === "backup") updateChrome();
 }
 
@@ -2367,6 +2375,7 @@ function bind() {
   $("osuDir").addEventListener("change", saveFolders);
   $("replayDir").addEventListener("change", saveFolders);
   $("trashDir").addEventListener("change", saveFolders);
+  $("backupZip").addEventListener("change", async e => applyConfig(await api("/api/config", { backup_zip: e.target.checked })));
   $("dragSelect").addEventListener("change", async e => applyConfig(await api("/api/config", { drag_select: e.target.checked })));
   $("langSel").addEventListener("change", e => changeLang(e.target.value));
   $("setDone").addEventListener("click", () => $("settings").close());
