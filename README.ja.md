@@ -1,4 +1,7 @@
-# REosu!
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo/logo-dark.png">
+  <img src="docs/logo/logo-light.png" alt="REosu!" width="360">
+</picture>
 
 [English](README.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | **日本語**
 
