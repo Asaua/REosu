@@ -4,6 +4,12 @@ A local record manager for **osu!stable** on Windows. It finds records that disa
 
 Not affiliated with or endorsed by ppy.
 
+## Download
+
+Get `REosu.exe` from the [latest release](https://github.com/Asaua/REosu/releases/latest) and run it. No installation is needed.
+
+The exe isn't code-signed, so Windows SmartScreen may warn you. Choose **More info**, then **Run anyway**. You can compare the file with the SHA-256 hash on the release page.
+
 ## Features
 
 - **Recover:** lists replays in `Data\r` that are missing from `scores.db`, and restores the ones you select.
