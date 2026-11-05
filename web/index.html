@@ -1095,7 +1095,10 @@ function setTab(tab) {
 }
 
 /* ---- 필터 ---- */
-const sources = () => state.tab === "all" ? state.items.concat(state.saved) : state.items;
+/* 맵이 설치되지 않은 기록은 복구해도 게임에 보이지 않으므로 복구 대상이 아니다.
+   osu!.db를 읽지 못했으면 설치 여부를 모르니 막지 않는다. */
+const canRecover = it => it.id > 0 && (!!it.name || !!(state.stats && !state.stats.names_ok));
+const sources = () => state.tab === "all" ? state.items.concat(state.saved) : state.items.filter(canRecover);
 const digits = el => { const v = el.value.replace(/[^0-9]/g, ""); if (v !== el.value) el.value = v; return v === "" ? null : +v; };
 
 function applyFilters(keepAnchor) {
@@ -1120,7 +1123,7 @@ function applyFilters(keepAnchor) {
     if (f.map === "yes" && !it.name) return false;
     if (f.map === "no" && it.name) return false;
     if (all && f.status === "saved" && it.id > 0) return false;
-    if (all && f.status === "missing" && it.id < 0) return false;
+    if (all && f.status === "missing" && !canRecover(it)) return false;
     if (mode !== "" && it.mode !== +mode) return false;
     if (player !== "" && it.player !== player.slice(1)) return false;
     if (from !== null && it.t < from) return false;
@@ -1359,7 +1362,7 @@ function rowEl(it, top, isLast) {
   const parts = [MODES[it.mode], fmtWhen(it.t)];
   if (it.player.trim()) parts.push(it.player);
   if (it.mods.length) parts.push(it.mods.join(" "));
-  if (waiting || (it.id > 0 && state.tab === "all")) {
+  if (waiting || (canRecover(it) && state.tab === "all")) {
     const em = document.createElement("em");
     if (waiting) em.className = "wait";
     em.textContent = waiting ? t(waiting === "delete" ? "row.waitDelete" : "row.waitRecover") : t("row.recoverable");
@@ -1691,7 +1694,7 @@ async function openDetail(it) {
   ];
   if (it.player.trim()) play.push([t("det.player"), it.player]);
   if (it.mods.length) play.push([t("det.mods"), it.mods.join(" ")]);
-  play.push([t("det.status"), t(it.id > 0 ? "det.stMissing" : "det.stSaved")]);
+  play.push([t("det.status"), t(it.id < 0 ? "det.stSaved" : canRecover(it) ? "det.stMissing" : "det.stNoMap")]);
   factRows($("detPlay"), play);
   $("detJudges").replaceChildren(...judgeRows(it).map(([k, v]) => {
     const d = document.createElement("div");
@@ -1704,7 +1707,7 @@ async function openDetail(it) {
   }));
 
   const rec = $("detRecover");
-  rec.hidden = it.id < 0 || isQueued(it);
+  rec.hidden = !canRecover(it) || isQueued(it);
   rec.onclick = () => { $("detail").close(); recover([it.id]); };
   const del = $("detDelete");
   del.hidden = isQueued(it);
@@ -1728,14 +1731,15 @@ function updateChrome() {
   const records = isRecordTab();
   const selectable = state.view.filter(it => !isQueued(it));
 
-  $("tabCount").textContent = total ? fmtN(total) : "";
+  const recoverable = state.items.filter(canRecover);
+  $("tabCount").textContent = recoverable.length ? fmtN(recoverable.length) : "";
   $("tabAll").textContent = total + state.saved.length ? fmtN(total + state.saved.length) : "";
   $("rescanBtn").disabled = busy;
   $("settingsBtn").disabled = busy;
   const inView = selectable.reduce((n, it) => n + (state.selected.has(it.id) ? 1 : 0), 0);
 
   // 목록 머리: 목록 전체에 대한 정보와 동작
-  const base = tab === "all" ? total + state.saved.length : total;
+  const base = tab === "all" ? total + state.saved.length : recoverable.length;
   $("listHead").hidden = !records || !shown;
   $("listCount").textContent = shown !== base ? t("count.of", { a: base, b: shown }) : t("count.items", { n: base });
   const allIn = selectable.length > 0 && inView === selectable.length;
@@ -1748,7 +1752,7 @@ function updateChrome() {
   $("dock").hidden = !busy && !showSel;
   $("stopJob").hidden = !(job && (job.kind === "backup" || (job.kind === "scan" && job.total))) || showSel;
   $("clearSel").hidden = !showSel;
-  const selRecoverable = [...state.selected].filter(id => id > 0).length;
+  const selRecoverable = recoverable.reduce((n, it) => n + (state.selected.has(it.id) ? 1 : 0), 0);
   $("recoverSel").hidden = !showSel || !selRecoverable;
   $("deleteSel").hidden = !showSel;
   const text = $("dockText");
@@ -2345,7 +2349,7 @@ function bind() {
     updateChrome();
     scheduleRender();
   });
-  $("recoverSel").addEventListener("click", () => recover([...state.selected].filter(id => id > 0)));
+  $("recoverSel").addEventListener("click", () => recover(state.items.filter(it => state.selected.has(it.id) && canRecover(it)).map(it => it.id)));
   $("deleteSel").addEventListener("click", () => requestDelete([...state.selected].map(findItem).filter(Boolean)));
   $("stopJob").addEventListener("click", () => api("/api/stop", {}));
   $("dlgCancel").addEventListener("click", () => $("dialog").close());

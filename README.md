@@ -13,7 +13,7 @@ Not affiliated with or endorsed by ppy.
 
 Get `REosu.exe` from the [latest release](https://github.com/Asaua/REosu/releases/latest) and run it. No installation is needed.
 
-The exe isn't code-signed, so Windows SmartScreen may warn you. Choose **More info**, then **Run anyway**. You can compare the file with the SHA-256 hash on the release page.
+The exe is self-signed by Asaua, not by a certificate authority Windows trusts, so Windows SmartScreen may warn you. Choose **More info**, then **Run anyway**. You can compare the file with the SHA-256 hash on the release page.
 
 ## Screenshots
 
@@ -25,7 +25,7 @@ The exe isn't code-signed, so Windows SmartScreen may warn you. Choose **More in
 
 ## Features
 
-- **Recover:** lists replays in `Data\r` that are missing from `scores.db`, and restores the ones you select.
+- **Recover:** lists replays in `Data\r` that are missing from `scores.db`, and restores the ones you select. The map must be installed.
 - **All records:** browse, filter, and delete local records.
 - **History:** undo any recovery or deletion. Deleted replays are kept in `Data\r\_deleted` by default.
 - **Backup:** copy replays, collections, songs, skins, screenshots, and settings to a dated folder.

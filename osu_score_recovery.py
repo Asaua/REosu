@@ -1288,7 +1288,8 @@ class App:
     # --- 요청 ---
     def request_recover(self, ids):
         self.require_osu_dir()
-        rows = [self.cands[i] for i in ids if i in self.cands]
+        # 맵이 설치되지 않은 기록은 복구해도 게임에 보이지 않는다 (osu!.db를 못 읽었으면 막지 않는다)
+        rows = [self.cands[i] for i in ids if i in self.cands and (self.cands[i].get("name") or self.names is None)]
         if not rows:
             raise RecoveryError(tr("srv.nothingRecover"))
         keys = [[s["md5"], str(s["ts"])] for s in rows]
