@@ -526,13 +526,12 @@ def lookup_online(md5):
     failures = 0
     try:
         rows = _fetch_json(f"https://osu.direct/api/get_beatmaps?h={md5}")
-        if isinstance(rows, list) and rows and isinstance(rows[0], dict):
-            b = rows[0]
+        # 맵셋의 난이도를 모두 돌려주고 순서도 일정하지 않아서, 해시가 같은 줄을 고른다
+        b = next((r for r in rows if isinstance(r, dict) and r.get("file_md5") == md5), None) if isinstance(rows, list) else None
+        if b:
             return _map_info("osu.direct", b.get("artist"), b.get("title"), b.get("version"), b.get("creator"),
                              b.get("beatmapset_id"), b.get("beatmap_id"), b.get("approved"),
                              b.get("difficultyrating"), b.get("bpm"), b.get("total_length"))
-        if isinstance(rows, list):
-            return None
     except urllib.error.HTTPError as e:
         if e.code != 404:
             failures += 1
@@ -540,7 +539,7 @@ def lookup_online(md5):
         failures += 1
     try:
         b = _fetch_json(f"https://catboy.best/api/v2/md5/{md5}")
-        if isinstance(b, dict) and b.get("id"):
+        if isinstance(b, dict) and b.get("id") and b.get("checksum") == md5:
             bset = b.get("set") if isinstance(b.get("set"), dict) else {}
             return _map_info("catboy.best", bset.get("artist"), bset.get("title"), b.get("version"), bset.get("creator"),
                              b.get("beatmapset_id") or bset.get("id"), b.get("id"), b.get("ranked"),
@@ -883,8 +882,10 @@ class App:
     def load_maps(self):
         try:
             with open(self.map_path, encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, ValueError):
+                saved = json.load(f)
+            # 1.0.1까지의 결과에는 다른 난이도가 섞여 있어서, 해시를 함께 저장한 결과만 쓴다
+            return {md5: info for md5, info in saved.items() if isinstance(info, dict) and info.get("md5") == md5}
+        except (OSError, ValueError, AttributeError):
             return {}
 
     def lookup_map(self, md5):
@@ -899,6 +900,7 @@ class App:
             return {"error": str(e)}
         if info is None:
             return {"found": False}
+        info["md5"] = md5
         with self.lock:
             self.maps[md5] = info
             tmp = self.map_path + ".tmp"
