@@ -681,6 +681,7 @@ def backup_sources(osu_dir, key):
     """백업 항목 -> [(원본 경로, 백업 폴더 안 상대 경로)]"""
     if key == "scores":
         return [(os.path.join(osu_dir, "scores.db"), "scores.db"),
+                (os.path.join(osu_dir, "osu!.db"), "osu!.db"),
                 (os.path.join(osu_dir, "Data", "r"), os.path.join("Data", "r"))]
     if key == "collection":
         return [(os.path.join(osu_dir, "collection.db"), "collection.db")]
